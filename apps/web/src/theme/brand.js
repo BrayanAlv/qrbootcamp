@@ -5,7 +5,7 @@ export const BRAND_ASSETS = {
   // la pantalla de escaneo deja el espacio reservado sin renderizar la imagen.
   // (logo-bootcamp-2026.png del correo no sirve: es RGB sin canal alfa y su
   // wordmark es blanco sobre blanco, así que se ve como un rectángulo blanco.)
-  bootcampLogo: '',
+  bootcampLogo: 'https://s3lata.maderasstudio.com/email/logobootcampfinal.png',
   maderasStudioLogo: 'https://s3lata.maderasstudio.com/email/maderas-studio-logo-blanco.png',
   // Icono del botón "Clic para Escanear QR" de la pantalla móvil.
   qrIcon: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/14/Codigo_QR.svg/500px-Codigo_QR.svg.png',
