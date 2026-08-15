@@ -1,0 +1,43 @@
+# Dependencias
+node_modules/
+**/node_modules/
+
+# Variables de entorno
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Builds
+dist/
+build/
+coverage/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Testing
+coverage/
+
+# Docker
+data/
+mongodb-data/
+
+# Claves y secretos locales
+*.pem
+*.key
+*.crt
+!infrastructure/nginx/*.conf
+opencode.json

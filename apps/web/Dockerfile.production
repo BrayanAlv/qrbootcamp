@@ -1,0 +1,16 @@
+# Producción: build de estáticos + servir con Vite preview (etapa final)
+FROM node:24-alpine AS build
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+
+FROM node:24-alpine AS runtime
+WORKDIR /app
+COPY --from=build /app/package*.json ./
+RUN npm install --omit=dev
+COPY --from=build /app/dist ./dist
+# vite preview sirve los estáticos (SPA) sin necesidad de Nginx.
+EXPOSE 5173
+CMD ["npm", "run", "start"]

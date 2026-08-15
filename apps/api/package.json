@@ -1,0 +1,37 @@
+{
+  "name": "qr-api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Backend QR Invitations (Node + Express + MongoDB)",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "lint": "eslint .",
+    "test": "node --test",
+    "seed": "node src/scripts/seed.js",
+    "preview:email": "node src/scripts/previewEmail.js"
+  },
+  "dependencies": {
+    "@node-rs/argon2": "^2.1.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "exceljs": "^4.4.0",
+    "express": "^4.21.0",
+    "express-rate-limit": "^7.4.0",
+    "handlebars": "^4.7.9",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.0",
+    "mongoose": "^8.8.0",
+    "multer": "^2.2.0",
+    "qrcode": "^1.5.4",
+    "resend": "^6.20.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.15.0",
+    "globals": "^15.12.0"
+  }
+}

@@ -1,0 +1,49 @@
+import api, { extractData } from './api.js';
+
+export const invitationService = {
+  async list() {
+    const res = await api.get('/invitations');
+    return extractData(res) ?? [];
+  },
+  // params: { status, q, page, limit } → { items, total, page, limit }
+  async listSent(params = {}) {
+    const query = Object.fromEntries(
+      Object.entries(params).filter(([, v]) => v !== '' && v != null),
+    );
+    const res = await api.get('/invitations/sent', { params: query });
+    return extractData(res) ?? { items: [], total: 0, page: 1, limit: 25 };
+  },
+  async stats() {
+    const res = await api.get('/invitations/stats');
+    return extractData(res) ?? { total: 0, sinEnviar: 0, porEstado: {} };
+  },
+  async importExcel(file) {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await api.post('/invitations/import', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+    return extractData(res);
+  },
+  async sendAll() {
+    const res = await api.post('/invitations/send');
+    return extractData(res);
+  },
+  async sendOne(id) {
+    const res = await api.post(`/invitations/${id}/send`);
+    return extractData(res);
+  },
+  // Reenvío forzado: genera un QR nuevo e invalida el anterior.
+  async resendOne(id) {
+    const res = await api.post(`/invitations/${id}/resend`);
+    return extractData(res);
+  },
+  async remove(id) {
+    const res = await api.delete(`/invitations/${id}`);
+    return extractData(res);
+  },
+  async accept(id, token) {
+    const res = await api.post(`/invitations/${id}/accept`, { token });
+    return extractData(res);
+  },
+};
+
+export default invitationService;
