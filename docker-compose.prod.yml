@@ -25,6 +25,8 @@ services:
       - .env
     environment:
       NODE_ENV: production
+      # Puerto interno del API en producción (sobrescribe al del .env; el dev usa 3000)
+      PORT: 3100
     depends_on:
       mongodb:
         condition: service_healthy
