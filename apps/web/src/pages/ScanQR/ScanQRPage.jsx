@@ -456,10 +456,10 @@ export function ScanQRPage() {
         {/* Espacio reservado para el logo: se pinta en cuanto BRAND_ASSETS.bootcampLogo tenga URL. */}
         <Box
           sx={{
-            width: '72%',
-            maxWidth: 300,
-            height: '30vh',
-            mt: '10vh',
+            width: '84%',
+            maxWidth: 360,
+            height: '38vh',
+            mt: '6vh',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
