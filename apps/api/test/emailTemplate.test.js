@@ -155,14 +155,16 @@ test('las clases de los media queries y las del marcado coinciden', () => {
   }
 });
 
-// Sin `color-scheme` declarado, el modo oscuro de Outlook.com invierte por su cuenta
-// el bloque claro y deja texto oscuro sobre fondo oscuro.
-test('se declaran los dos esquemas de color para el modo oscuro', () => {
+// El diseño fija sus propios colores y no debe re-invertirse en modo oscuro: se declara
+// el correo como SOLO claro (`only light`). Si se declararan los dos esquemas, clientes
+// como Outlook.com e iOS re-invierten el bloque claro y reescriben el texto (lo dejaba
+// en un tono "lila", no negro) pese a todas las defensas CSS.
+test('el correo se declara solo claro para que el modo oscuro no lo re-invierta', () => {
   const html = render();
 
-  assert.match(html, /<meta name="color-scheme" content="light dark"/);
-  assert.match(html, /<meta name="supported-color-schemes" content="light dark"/);
-  assert.match(html, /color-scheme:light dark/);
+  assert.match(html, /<meta name="color-scheme" content="only light"/);
+  assert.match(html, /<meta name="supported-color-schemes" content="only light"/);
+  assert.match(html, /color-scheme:only light/);
 });
 
 test('el nombre se escapa: viene de un Excel y puede traer caracteres HTML', () => {

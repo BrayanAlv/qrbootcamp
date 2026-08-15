@@ -7,7 +7,8 @@ import Handlebars from 'handlebars';
 //
 // Marcado pensado para clientes de correo, no para navegador: tablas anidadas,
 // estilos en línea, condicionales MSO/VML para el fondo en Outlook y media queries
-// para apilar en móvil. Al tocarlo, conservar esas piezas.
+// para los ajustes de teléfono (los bloques del correo, salvo el QR y su texto, son
+// de una columna y no necesitan apilarse: el QR y el texto viven en filas propias).
 //
 // Nada de flexbox ni de grid: Gmail y Outlook los descartan. La pasarela de logos
 // se resolvió con un solo asset ya horneado (`pasarela-de-logos-1.png`, los nueve
@@ -24,11 +25,14 @@ const BASE_TEMPLATE = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="x-apple-disable-message-reformatting" />
-  <!-- Declarar los dos esquemas evita que el modo oscuro de Outlook.com e iOS invierta
-       por su cuenta el bloque claro y deje texto oscuro sobre fondo oscuro. No basta por
-       sí solo: ver el bloque de defensas de modo oscuro más abajo. -->
-  <meta name="color-scheme" content="light dark" />
-  <meta name="supported-color-schemes" content="light dark" />
+  <!-- Declarar SOLO el esquema claro (only light) evita que el modo oscuro de los
+       clientes (Outlook.com, iOS, Gmail) re-invierta el bloque claro — antes se
+       declaraban los dos esquemas y el cliente aplicaba su modo oscuro reescribiendo
+       el bloque y dejando el texto en un tono no negro. Con only light el cliente
+       respeta el diseño tal cual. Aun así se conservan las defensas puntuales de modo
+       oscuro más abajo por si un cliente las ignora. -->
+  <meta name="color-scheme" content="only light" />
+  <meta name="supported-color-schemes" content="only light" />
   <meta name="format-detection" content="telephone=no,date=no,address=no,email=no,url=no" />
   <title>Ciudad Maderas Bootcamp 2026</title>
   <!--[if mso]>
@@ -39,36 +43,31 @@ const BASE_TEMPLATE = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional
   <!--<![endif]-->
   <!-- Este bloque es TODO o NADA en Gmail: si su saneador encuentra una sola construcción
        que no soporta, borra el bloque entero y con él todas las media queries. Por eso aquí
-       no hay `@import` (la fuente ya la pide el <link> de arriba, que al estar fuera del
-       <style> no contamina nada), ni `:root` (solo admite selectores de clase, elemento e
+       no hay @import (la fuente ya la pide el <link> de arriba, que al estar fuera del
+       <style> no contamina nada), ni :root (solo admite selectores de clase, elemento e
        id), ni selectores de atributo (ver el segundo <style>, más abajo). El límite duro es
        de 8192 caracteres, comentarios incluidos. Al añadir reglas, respetar las tres cosas. -->
   <style type="text/css">
     body,table,td,a{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;}
     table,td{mso-table-lspace:0pt;mso-table-rspace:0pt;}
     img{-ms-interpolation-mode:bicubic;border:0;height:auto;line-height:100%;outline:none;text-decoration:none;display:block;}
-    body{margin:0!important;padding:0!important;width:100%!important;background-color:#0b0620;}
+    body{margin:0!important;padding:0!important;width:100%!important;background-color:#0b0620;color-scheme:only light;}
     a{text-decoration:none;}
     .mont{font-family:'Montserrat',Helvetica,Arial,sans-serif!important;}
 
-    /* ============ DEFENSAS DE MODO OSCURO ============
-       El bloque del QR es el único claro del correo, y varios clientes en modo oscuro lo
-       invierten: el fondo #c6c3d2 se va a oscuro y el texto #1b1430 sale blanco. Eso es
-       el "texto en blanco" que aparece en móvil, no un problema de la media query.
-       Aquí se reafirman los mismos colores para que la inversión no tenga efecto. Los
-       estilos en línea no alcanzan contra esto porque el cliente los reescribe, así que
-       hacen falta clases con !important.
-       Alcance real: cubre iOS/Apple Mail y Outlook.com. La app de Gmail en Android con
-       inversión forzada del sistema ignora todo esto; ahí la única salida segura sería
-       quemar el bloque como imagen. */
+    /* El correo se declara only light arriba, así el modo oscuro no lo re-invierte.
+       Por si algún cliente lo ignora, aquí se congela el fondo claro del bloque del QR.
+       El texto negro del acceso va forzado en el propio <p> con !important y no depende
+       de clases: a menos estilos, menos que pueda re-escribir el cliente. */
     @media (prefers-color-scheme:dark){
       .lightbg{background-color:#c6c3d2!important;}
-      .dark-title{color:#1b1430!important;}
-      .dark-copy{color:#4a4560!important;}
     }
     /* Las variantes con los prefijos de Outlook viven en el segundo <style>. */
 
-    /* Teléfono y ventanas estrechas: las columnas se apilan. */
+    /* Teléfono y ventanas estrechas: se adelgazan los márgenes y crece el QR.
+       El bloque de acceso ya no apila por media query: el QR y su texto viven cada uno
+       en su propia fila, centrados, tanto en web como en móvil. El texto corre negro
+       pleno y centrado por su estilo inline (!important), sin capas de clases. */
     @media only screen and (max-width:620px){
       .wrap{width:100%!important;}
       .px{padding-left:26px!important;padding-right:26px!important;}
@@ -76,18 +75,6 @@ const BASE_TEMPLATE = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional
       /* El PNG del QR se genera a 300px, así que a 200 sigue sin interpolar y se
          escanea mejor en la puerta (pantalla con poco brillo, lectores lentos). */
       .qr{width:200px!important;}
-      /* El padding-right en línea de la celda del QR descentraría el código al apilarse.
-         La celda de texto lo recupera con .stack-pad, que se declara después. */
-      .stack{display:block!important;width:100%!important;max-width:100%!important;text-align:center!important;padding-right:0!important;}
-      .stack-pad{padding:22px 26px 0 26px!important;}
-      /* Bloque de acceso apilado: el texto queda debajo del QR, así que se centra
-         con él y sube a negro pleno para leerse a plena luz en la puerta.
-         El centrado se declara en el propio <p> y no solo en la celda: el
-         align="left" de la celda gana en los clientes que no heredan el
-         text-align de .stack. Las variantes con los prefijos de Outlook, que hacen
-         falta para que no vuelva el gris al invertir colores, están repetidas en el
-         segundo <style>. */
-      .access-copy{color:#000000!important;text-align:center!important;}
     }
 
     /* ============ ESCALONES DEL HEADLINE ============
@@ -128,14 +115,10 @@ const BASE_TEMPLATE = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional
        queries. No mover estas reglas al otro <style>: era justo lo que rompía el correo en
        la app de Gmail. El orden interno importa, igual que arriba: gana la última. -->
   <style type="text/css">
+    /* El texto negro del bloque de acceso va inline con !important en el <p>: los
+       selectores de atributo de Outlook no hacen falta para su color. Lo único que se
+       reafirma aquí es el fondo claro del bloque, por si Outlook lo re-invierte. */
     [data-ogsc] .lightbg,[data-ogsb] .lightbg{background-color:#c6c3d2!important;}
-    [data-ogsc] .dark-title,[data-ogsb] .dark-title{color:#1b1430!important;}
-    [data-ogsc] .dark-copy,[data-ogsb] .dark-copy{color:#4a4560!important;}
-    /* Repetidas con prefijo porque [data-ogsc] .dark-copy pesa más que una sola clase:
-       sin esto volvería el gris al invertir colores en el bloque de acceso apilado. */
-    @media only screen and (max-width:620px){
-      [data-ogsc] .access-copy,[data-ogsb] .access-copy{color:#000000!important;text-align:center!important;}
-    }
   </style>
 </head>
 
@@ -241,32 +224,30 @@ const BASE_TEMPLATE = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional
     <!--[if mso]></v:textbox></v:rect><![endif]-->
 
     <!-- ==================== BLOQUE CLARO: ACCESO / QR ==================== -->
+    <!-- El QR y el texto son independientes: cada uno en su propia fila y centrado,
+         tanto en web como en móvil. El texto es negro pleno y centrado, forzado con
+         !important inline en el propio <p>; no usa capas de clases, así el modo oscuro
+         no tiene qué re-escribir. -->
     <table role="presentation" class="wrap lightbg" width="600" cellpadding="0" cellspacing="0" border="0"
            style="width:600px;max-width:600px;background-color:#c6c3d2;">
       <tr>
-        <td class="px lightbg" style="padding:34px 40px 22px 40px;background-color:#c6c3d2;">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-            <tr>
-              <!-- QR: viaja como adjunto inline, no como URL: Gmail y Outlook descartan las URI data: -->
-              <td class="stack" width="180" valign="top" align="center" style="width:180px;padding-right:26px;">
-                <img src="cid:{{qrCid}}" alt="Tu código QR de acceso" class="qr" width="170"
-                     style="width:170px;max-width:100%;height:auto;margin:0 auto;" />
-              </td>
-              <!-- Texto -->
-              <td class="stack stack-pad" valign="top" align="left">
-                <p class="mont dark-title access-copy" style="margin:0 0 12px 0;font-family:'Montserrat',Helvetica,Arial,sans-serif;font-size:18px;line-height:23px;font-weight:700;color:#1b1430;text-transform:uppercase;letter-spacing:.6px;">
-                  Tu acceso es personal
-                </p>
-                <p class="mont dark-copy access-copy" style="margin:0 0 12px 0;font-family:'Montserrat',Helvetica,Arial,sans-serif;font-size:11.5px;line-height:18px;font-weight:400;color:#4a4560;">
-                  Antes de tu llegada, asegúrate de tener este código QR a la mano. Es personal, de un solo uso y no debe
-                  ser compartido con nadie más.
-                </p>
-                <p class="mont dark-copy access-copy" style="margin:0;font-family:'Montserrat',Helvetica,Arial,sans-serif;font-size:11.5px;line-height:18px;font-weight:400;color:#4a4560;">
-                  Guárdalo bien. Lo necesitarás para acceder al evento.
-                </p>
-              </td>
-            </tr>
-          </table>
+        <!-- QR: viaja como adjunto inline, no como URL: Gmail y Outlook descartan las URI data: -->
+        <td class="px lightbg" align="center" style="padding:34px 40px 0 40px;background-color:#c6c3d2;">
+          <img src="cid:{{qrCid}}" alt="Tu código QR de acceso" class="qr" width="170"
+               style="width:170px;max-width:100%;height:auto;margin:0 auto;" />
+        </td>
+      </tr>
+      <!-- Texto -->
+      <tr>
+        <td class="px lightbg" align="center" style="padding:26px 40px 22px 40px;background-color:#c6c3d2;text-align:center;">
+          <p class="mont" style="margin:0 0 12px 0;font-size:18px;line-height:23px;font-weight:700;color:#000000!important;text-align:center!important;">Tu acceso es personal</p>
+          <p class="mont" style="margin:0 0 12px 0;font-size:11.5px;line-height:18px;font-weight:400;color:#000000!important;text-align:center!important;">
+            Antes de tu llegada, asegúrate de tener este código QR a la mano. Es personal, de un solo uso y no debe
+            ser compartido con nadie más.
+          </p>
+          <p class="mont" style="margin:0;font-size:11.5px;line-height:18px;font-weight:400;color:#000000!important;text-align:center!important;">
+            Guárdalo bien. Lo necesitarás para acceder al evento.
+          </p>
         </td>
       </tr>
 

@@ -1,0 +1,57 @@
+name: qr-invitations-prod
+
+services:
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile.production
+      args:
+        VITE_API_URL: /api/v1
+    container_name: qr-web
+    restart: unless-stopped
+    depends_on:
+      - api
+    networks:
+      - backend
+      - npm
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile.production
+    container_name: qr-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - backend
+
+  mongodb:
+    image: mongo:8
+    container_name: qr-mongodb
+    restart: unless-stopped
+    command: ["mongod", "--bind_ip_all"]
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - backend
+
+volumes:
+  mongodb_data:
+
+networks:
+  backend:
+  npm:
+    external: true
+    name: ${NPM_NETWORK:-proxy}

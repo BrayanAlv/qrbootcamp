@@ -1,0 +1,18 @@
+# Produccion: dependencias de runtime + arranque del API
+FROM node:24-alpine
+
+ENV NODE_ENV=production
+WORKDIR /app
+
+# Native module de argon2: ya incluye prebuilds para alpine (musl)
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+COPY . .
+
+# Ejecutar como usuario no root
+USER node
+
+EXPOSE 3000
+
+CMD ["node", "src/server.js"]

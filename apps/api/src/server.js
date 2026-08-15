@@ -24,7 +24,11 @@ export async function createApp() {
 
   app.use(
     cors({
-      origin: true,
+      origin(origin, cb) {
+        // Sin header Origin (misma-origen / curl) se permite siempre.
+        if (!origin || env.corsOrigins.includes(origin)) return cb(null, true);
+        return cb(null, false);
+      },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
       allowedHeaders: ['Content-Type', 'Authorization'],
