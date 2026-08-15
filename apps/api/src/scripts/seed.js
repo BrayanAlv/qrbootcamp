@@ -17,12 +17,15 @@ if (!PASSWORD || PASSWORD.length < 8) {
 
 await mongoose.connect(env.mongoUri);
 
+const passwordHash = await hashPassword(PASSWORD);
 const existing = await User.findOne({ email: EMAIL });
 if (existing) {
+  // Resetea la contraseña del admin existente (permite recuperar el acceso y
+  // asegura que el hash es el de la config actual).
+  await User.updateOne({ _id: existing._id }, { $set: { name: NAME, passwordHash, isActive: true } });
   // eslint-disable-next-line no-console
-  console.log(`[seed] El usuario ${EMAIL} ya existe.`);
+  console.log(`[seed] Contraseña del usuario ${EMAIL} actualizada.`);
 } else {
-  const passwordHash = await hashPassword(PASSWORD);
   await User.create({ email: EMAIL, name: NAME, role: 'admin', passwordHash });
   // eslint-disable-next-line no-console
   console.log(`[seed] Usuario admin creado: ${EMAIL}`);
