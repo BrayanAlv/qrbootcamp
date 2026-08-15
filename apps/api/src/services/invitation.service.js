@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { Invitation, INVITATION_STATUS } from '../models/Invitation.model.js';
 import AppError from '../utils/ApiError.js';
 import { hashToken } from './qr.service.js';
+import { extractQrToken } from '../validators/qr.validators.js';
 
 const now = () => new Date();
 
@@ -100,7 +101,13 @@ export async function deleteInvitation({ invitationId, senderId }) {
  * Requiere el token para demostrar posesión del QR (nunca se confía en un userId del cliente).
  */
 export async function acceptInvitation({ invitationId, token }) {
-  const tokenHash = hashToken(token);
+  // El QR codifica la URL <APP_URL>/i/<token>: normalizamos igual que en la
+  // validación para aceptar tanto la URL completa como el token suelto.
+  const normalized = extractQrToken(token);
+  if (!normalized) {
+    throw new AppError({ code: 'INVALID_QR', message: 'Código QR inválido', httpStatus: 400 });
+  }
+  const tokenHash = hashToken(normalized);
   const updated = await Invitation.findOneAndUpdate(
     {
       _id: invitationId,

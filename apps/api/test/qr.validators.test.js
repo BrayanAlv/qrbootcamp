@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { extractQrToken } from '../src/validators/qr.validators.js';
+import { hashToken } from '../src/services/qr.service.js';
 import { guestRowSchema } from '../src/validators/invitation.validators.js';
 
 test('extractQrToken admite token puro', () => {
@@ -10,6 +11,12 @@ test('extractQrToken admite token puro', () => {
 test('extractQrToken extrae de una URL completa con query', () => {
   const url = 'http://localhost/i/KZKQvj1BC_UbaVzw-jDAcSKE3K8dxsWSm2eBa007wBg?utm=e';
   assert.equal(extractQrToken(url), 'KZKQvj1BC_UbaVzw-jDAcSKE3K8dxsWSm2eBa007wBg');
+});
+
+test('accept: el hash de la URL normalizada coincide con el del token suelto', () => {
+  const token = 'KZKQvj1BC_UbaVzw-jDAcSKE3K8dxsWSm2eBa007wBg';
+  const url = `https://bootcamp.maderasstudio.com/i/${token}`;
+  assert.equal(hashToken(extractQrToken(url)), hashToken(token));
 });
 
 test('extractQrToken rechaza strings cortos o vacíos', () => {
