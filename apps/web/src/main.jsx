@@ -12,6 +12,7 @@ import './theme/global.css';
 // Conecta el store de auth con el interceptor de Axios (refresh en 401).
 configureAuth({
   accessTokenGetter: () => useAuthStore.getState().accessToken,
+  accessTokenSetter: (token) => useAuthStore.getState().setAccessToken(token),
   refreshHandler: async () => {
     const refreshed = await authService.refresh();
     useAuthStore.getState().setAccessToken(refreshed.accessToken);
