@@ -3,7 +3,6 @@ import {
   Box, Typography, ButtonBase, IconButton, Tooltip, Menu, MenuItem,
   ListItemIcon, ListItemText, Divider, useMediaQuery, useTheme,
 } from '@mui/material';
-import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import LogoutIcon from '@mui/icons-material/Logout';
@@ -17,7 +16,6 @@ import { COLORS, FONTS, LINES } from '../theme/tokens.js';
 
 const NAV = [
   { path: '/scan', label: 'Escanear', icon: <QrCodeScannerIcon fontSize="small" /> },
-  { path: '/invitations', label: 'Invitaciones', icon: <MailOutlineIcon fontSize="small" /> },
   { path: '/admin/carga', label: 'Invitados', icon: <UploadFileIcon fontSize="small" />, adminOnly: true },
 ];
 

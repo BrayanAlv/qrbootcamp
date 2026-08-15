@@ -4,7 +4,6 @@ import { RequireAuth } from './RequireAuth.jsx';
 import { RequireAdmin } from './RequireAdmin.jsx';
 import { LoginPage } from '../pages/Login/LoginPage.jsx';
 import { ScanQRPage } from '../pages/ScanQR/ScanQRPage.jsx';
-import { InvitationsPage } from '../pages/Invitations/InvitationsPage.jsx';
 import { AdminImportPage } from '../pages/AdminImport/AdminImportPage.jsx';
 import { HealthPage } from '../pages/HealthPage.jsx';
 
@@ -19,7 +18,6 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <Navigate to="/scan" replace /> },
           { path: 'scan', element: <ScanQRPage /> },
-          { path: 'invitations', element: <InvitationsPage /> },
           { path: 'health', element: <HealthPage /> },
           {
             element: <RequireAdmin />,
