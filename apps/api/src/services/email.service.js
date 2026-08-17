@@ -116,31 +116,107 @@ export async function sendInvitationEmails(invitationId, { force = false } = {})
     await Invitation.updateOne({ _id: inv._id }, { $set: update });
   }
 
-  return { sent: sent ? 1 : 0, errors: sendError ? [sendError] : [] };
+  return { sent: sent ? 1 : 0, errors: sendError ? [sendError] : [], email: inv.guest.email };
+}
+
+const PAGE_SIZE = 50;
+const MAX_LAST_ERRORS = 20;
+
+function pendingQuery(senderId) {
+  return { sender: senderId, usedAt: null, 'emailStatus.attendee': { $ne: true } };
+}
+
+// Estado en memoria del batch en curso por admin. Vive solo mientras el proceso
+// corre: no sobrevive un reinicio, pero el progreso real ya está en Mongo
+// (`emailStatus.attendee`), así que reiniciar el envío después de un reinicio
+// simplemente retoma lo pendiente sin reenviar lo ya mandado.
+const runningBatches = new Map();
+
+function newBatchState(total) {
+  return { running: true, total, processed: 0, sent: 0, failed: 0, startedAt: new Date(), lastErrors: [] };
 }
 
 /**
- * Recorre las invitaciones pendientes del admin indicado y envía sus correos.
- * Se acota por `sender` para que un admin no dispare los envíos de otro.
- * El control de ritmo frente al límite de Resend vive en el adaptador,
- * así que aquí basta con recorrer secuencialmente.
+ * Corre en segundo plano: recorre TODAS las invitaciones pendientes del admin
+ * (sin tope de 200), en páginas, y actualiza el estado del batch a medida que
+ * avanza. El control de ritmo frente al límite de Resend vive en el adaptador
+ * (`resend.service.js`), así que aquí basta con recorrer secuencialmente.
+ *
+ * El cursor avanza por `_id` en vez de repetir siempre la misma query: un
+ * correo fallido NO pasa a `emailStatus.attendee: true`, así que sigue
+ * cumpliendo `pendingQuery` — sin el cursor, la misma página se repetiría sin
+ * fin dentro de esta corrida. Con el cursor, cada invitación se intenta una
+ * sola vez por corrida; si falla, sigue pendiente para el próximo click en
+ * "Enviar pendientes" (así funciona el reintento).
  */
-export async function sendAllPendingEmails(senderId) {
-  const pending = await Invitation.find({
-    sender: senderId,
-    usedAt: null,
-    'emailStatus.attendee': { $ne: true },
-  }).limit(200);
-  const results = [];
-  for (const inv of pending) {
-    try {
-      results.push({ id: inv._id, guest: inv.guest.email, ...(await sendInvitationEmails(inv._id)) });
-    } catch (e) {
-      // Un fallo aislado no debe abortar el lote y perder los envíos ya hechos.
-      results.push({ id: inv._id, guest: inv.guest.email, sent: 0, errors: [e?.message ?? String(e)] });
+async function runBatch(senderId, state) {
+  try {
+    let lastId = null;
+    for (;;) {
+      const query = { ...pendingQuery(senderId), ...(lastId ? { _id: { $gt: lastId } } : {}) };
+      const page = await Invitation.find(query).sort({ _id: 1 }).limit(PAGE_SIZE);
+      if (page.length === 0) break;
+      for (const inv of page) {
+        lastId = inv._id;
+        try {
+          const result = await sendInvitationEmails(inv._id);
+          state.processed += 1;
+          if (result.sent > 0) state.sent += 1;
+          else if (!result.skipped) {
+            state.failed += 1;
+            pushLastError(state, inv.guest.email, result.errors?.[0]);
+          }
+        } catch (e) {
+          state.processed += 1;
+          state.failed += 1;
+          pushLastError(state, inv.guest.email, e?.message ?? String(e));
+        }
+      }
     }
+  } finally {
+    state.running = false;
   }
-  return results;
 }
 
-export default { sendInvitationEmails, sendAllPendingEmails };
+function pushLastError(state, guestEmail, message) {
+  state.lastErrors.push({ guest: guestEmail, error: message ?? 'error desconocido' });
+  if (state.lastErrors.length > MAX_LAST_ERRORS) state.lastErrors.shift();
+}
+
+/**
+ * Lanza (o reutiliza, si ya hay uno corriendo) el batch de envío pendiente del
+ * admin. No espera a que termine: el llamador recibe el estado inicial y debe
+ * consultar `getBatchStatus` para ver el progreso.
+ */
+export async function startPendingEmailsBatch(senderId) {
+  const existing = runningBatches.get(senderId);
+  if (existing?.running) return existing;
+
+  const total = await Invitation.countDocuments(pendingQuery(senderId));
+  const state = newBatchState(total);
+  runningBatches.set(senderId, state);
+  if (total > 0) {
+    // Fire-and-forget: el loop sigue corriendo aunque la petición HTTP ya haya respondido.
+    void runBatch(senderId, state);
+  } else {
+    state.running = false;
+  }
+  return state;
+}
+
+/**
+ * Estado del batch del admin: el que está corriendo (o el último terminado) si
+ * existe, o un estado "idle" recalculado desde Mongo si nunca se lanzó uno.
+ */
+export async function getBatchStatus(senderId) {
+  const existing = runningBatches.get(senderId);
+  if (existing) return existing;
+
+  const [pendientes, fallidos] = await Promise.all([
+    Invitation.countDocuments(pendingQuery(senderId)),
+    Invitation.countDocuments({ ...pendingQuery(senderId), 'guest.emailError': { $ne: null } }),
+  ]);
+  return { running: false, total: 0, processed: 0, sent: 0, failed: 0, startedAt: null, lastErrors: [], pendientes, fallidos };
+}
+
+export default { sendInvitationEmails, startPendingEmailsBatch, getBatchStatus };

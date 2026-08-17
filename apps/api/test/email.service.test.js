@@ -134,3 +134,38 @@ test('el control de ritmo espacia las llamadas consecutivas', async (t) => {
   // 3 envíos a 10/s => al menos 2 huecos de 100 ms.
   assert.ok(Date.now() - started >= 200, 'los envíos no deben salir todos a la vez');
 });
+
+test('sendInvitationEmails incluye el correo del invitado en el resultado', async (t) => {
+  const { Invitation } = await import('../src/models/Invitation.model.js');
+  const { getResendClient } = await import('../src/services/resend.service.js');
+  const { sendInvitationEmails } = await import('../src/services/email.service.js');
+
+  // El archivo ya fija RESEND_API_KEY='re_test_key' arriba, así que hay un
+  // cliente real de Resend: sin mockear `emails.send` este test haría una
+  // llamada de red de verdad. Igual que los demás tests del archivo, se
+  // mockea el método del cliente.
+  const client = getResendClient();
+  t.mock.method(client.emails, 'send', async () => ({ data: { id: 'email-1' }, error: null }));
+
+  const fakeInvitation = {
+    _id: 'inv-1',
+    usedAt: null,
+    emailStatus: { attendee: false },
+    guest: { name: 'Ana Pérez', email: 'ana@ejemplo.com' },
+    ccEmail: null,
+  };
+  const originalFindById = Invitation.findById;
+  const originalUpdateOne = Invitation.updateOne;
+  // `generateQrForInvitation` (qr.service.js) también llama a `Invitation.updateOne`
+  // para persistir el hash del QR: el mismo mock cubre esa llamada.
+  Invitation.findById = async () => fakeInvitation;
+  Invitation.updateOne = async () => ({});
+
+  try {
+    const result = await sendInvitationEmails('inv-1');
+    assert.equal(result.email, 'ana@ejemplo.com');
+  } finally {
+    Invitation.findById = originalFindById;
+    Invitation.updateOne = originalUpdateOne;
+  }
+});
