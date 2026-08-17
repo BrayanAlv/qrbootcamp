@@ -6,6 +6,7 @@ import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import env from './config/env.js';
 import { connectDb } from './config/db.js';
+import { startEmailWorker } from './queues/email.worker.js';
 import healthRoutes from './routes/health.routes.js';
 import authRoutes from './routes/auth.routes.js';
 import invitationRoutes from './routes/invitation.routes.js';
@@ -75,6 +76,7 @@ export async function createApp() {
 export async function startServer() {
   await connectDb();
   const app = await createApp();
+  const worker = startEmailWorker();
 
   return new Promise((resolve) => {
     const server = app.listen(env.port, '0.0.0.0', () => {
@@ -82,6 +84,15 @@ export async function startServer() {
       console.log(`[api] API escuchando en puerto ${env.port}`);
       resolve(server);
     });
+
+    const shutdown = async (signal) => {
+      // eslint-disable-next-line no-console
+      console.log(`[api] ${signal} recibido, cerrando...`);
+      await worker.close();
+      server.close(() => process.exit(0));
+    };
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('SIGINT', () => shutdown('SIGINT'));
   });
 }
 
