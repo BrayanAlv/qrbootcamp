@@ -88,7 +88,12 @@ export async function startServer() {
     const shutdown = async (signal) => {
       // eslint-disable-next-line no-console
       console.log(`[api] ${signal} recibido, cerrando...`);
-      await worker.close();
+      try {
+        await worker.close();
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('[api] error al cerrar el worker:', err?.message ?? err);
+      }
       server.close(() => process.exit(0));
     };
     process.on('SIGTERM', () => shutdown('SIGTERM'));
