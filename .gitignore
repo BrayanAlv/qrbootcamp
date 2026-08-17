@@ -41,3 +41,6 @@ mongodb-data/
 *.crt
 !infrastructure/nginx/*.conf
 opencode.json
+
+# Workspace de superpowers (subagent-driven-development)
+.superpowers/
