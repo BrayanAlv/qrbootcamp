@@ -12,7 +12,7 @@ const isValidEmail = (value) => Boolean(value) && z.string().trim().email().safe
 export const guestRowSchema = z
   .object({
     region: z.string().trim().optional().default(''),
-    crmId: z.string().trim().min(1, 'Falta el ID CRM').regex(/^\d+$/, 'ID CRM debe ser numérico'),
+    crmId: z.string().trim().min(1, 'Falta el ID CRM'),
     nombre: z.string().trim().min(1, 'Falta el nombre'),
     sede: z.string().trim().optional().default(''),
     asiste: z.string().trim().optional().default(''),

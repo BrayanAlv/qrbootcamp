@@ -52,6 +52,33 @@ export async function listSentInvitations(senderId, { status, q, page = 1, limit
   return { items, total, page, limit };
 }
 
+// Padrón global de invitados (para roles de escaneo/lectura): todas las
+// invitaciones de todos los remitentes, con los campos útiles en puerta.
+export async function listRegistry({ status, q, page = 1, limit = 25 } = {}) {
+  const filter = {};
+  if (status === 'sin_enviar') filter['emailStatus.attendee'] = { $ne: true };
+  else if (status === 'fallido') {
+    filter['emailStatus.attendee'] = { $ne: true };
+    filter['guest.emailError'] = { $ne: null };
+  } else if (status) filter.status = status;
+
+  if (q) {
+    const rx = new RegExp(escapeRegex(q), 'i');
+    filter.$or = [{ 'guest.name': rx }, { 'guest.email': rx }];
+  }
+
+  const [items, total] = await Promise.all([
+    Invitation.find(filter)
+      .select('guest.name guest.email region sede asiste crmId status')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit),
+    Invitation.countDocuments(filter),
+  ]);
+
+  return { items, total, page, limit };
+}
+
 // Contadores del panel: totales por estado y correos aún sin enviar.
 export async function getSentStats(senderId) {
   const [result] = await Invitation.aggregate([
@@ -144,4 +171,5 @@ export default {
   getSentStats,
   deleteInvitation,
   acceptInvitation,
+  listRegistry,
 };

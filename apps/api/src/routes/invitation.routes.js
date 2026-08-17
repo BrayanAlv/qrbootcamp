@@ -6,12 +6,14 @@ import {
   listInvitations,
   listSent,
   stats,
+  registry,
   removeInvitation,
   accept,
 } from '../controllers/invitation.controller.js';
 import { sendInvitation, resendInvitation, sendAll, sendStatus } from '../controllers/email.controller.js';
 import { protect } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
+import { requireUser } from '../middleware/requireUser.js';
 import { uploadExcel } from '../middleware/upload.js';
 import validate from '../middleware/validate.js';
 import { acceptSchema, createInvitationSchema, idParamSchema, listSentSchema } from '../validators/invitation.validators.js';
@@ -53,6 +55,7 @@ router.use(protect);
 
 // Las rutas literales van ANTES que las de `/:id`, o el parámetro las capturaría.
 router.get('/', listInvitations);
+router.get('/registry', requireUser, registry);
 router.post('/', requireAdmin, validate(createInvitationSchema), createInvitation);
 router.get('/sent', requireAdmin, validate(listSentSchema), listSent);
 router.get('/stats', requireAdmin, stats);

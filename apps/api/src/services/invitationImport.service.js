@@ -4,6 +4,10 @@ import { Invitation } from '../models/Invitation.model.js';
 import { guestRowSchema } from '../validators/invitation.validators.js';
 import AppError from '../utils/ApiError.js';
 
+// `crmId` numérico (solo dígitos) es el único que no puede repetirse.
+// Los crmIds de texto pueden repetirse libremente en import y alta manual.
+const IS_NUMERIC = /^\d+$/;
+
 const HEADER_ALIASES = {
   region: ['region'],
   crmId: ['idcrm', 'crmid', 'crm'],
@@ -114,11 +118,11 @@ export async function importInvitationsFromExcel({ buffer, mimeType, senderId })
       errors.push({ fila: line, errores: parsed.error.issues.map((iss) => iss.message), row: guest });
       return;
     }
-    if (seenCrmIds.has(parsed.data.crmId)) {
+    if (IS_NUMERIC.test(parsed.data.crmId) && seenCrmIds.has(parsed.data.crmId)) {
       errors.push({ fila: line, errores: [`ID CRM duplicado en el archivo: ${parsed.data.crmId}`], row: guest });
       return;
     }
-    seenCrmIds.add(parsed.data.crmId);
+    if (IS_NUMERIC.test(parsed.data.crmId)) seenCrmIds.add(parsed.data.crmId);
 
     valid.push({
       sender: senderId,
@@ -135,18 +139,23 @@ export async function importInvitationsFromExcel({ buffer, mimeType, senderId })
 
   let inserted = 0;
   if (valid.length) {
-    // Insert masivo; si un ID CRM ya existe en BD se omite (unicidad).
-    const ops = await Invitation.bulkWrite(
-      valid.map((doc) => ({
-        updateOne: {
-          filter: { crmId: doc.crmId, sender: doc.sender },
-          update: { $setOnInsert: doc },
-          upsert: true,
-        },
-      })),
+    // Insert masivo: un `crmId` numérico ya existente en BD se omite (unicidad),
+    // mientras que un `crmId` de texto se inserta siempre (puede repetirse).
+    const writeResult = await Invitation.bulkWrite(
+      valid.map((doc) =>
+        IS_NUMERIC.test(doc.crmId)
+          ? {
+              updateOne: {
+                filter: { crmId: doc.crmId, sender: doc.sender },
+                update: { $setOnInsert: doc },
+                upsert: true,
+              },
+            }
+          : { insertOne: { document: doc } },
+      ),
       { ordered: false },
     );
-    inserted = ops.upsertedCount;
+    inserted = writeResult.upsertedCount + writeResult.insertedCount;
   }
 
   return {

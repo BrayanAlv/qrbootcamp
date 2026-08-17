@@ -17,6 +17,15 @@ export const invitationService = {
     const res = await api.get('/invitations/stats');
     return extractData(res) ?? { total: 0, sinEnviar: 0, porEstado: {} };
   },
+  // Padrón global de personas y su estatus (roles de escaneo/lectura).
+  // params: { status, q, page, limit } → { items, total, page, limit }
+  async listRegistry(params = {}) {
+    const query = Object.fromEntries(
+      Object.entries(params).filter(([, v]) => v !== '' && v != null),
+    );
+    const res = await api.get('/invitations/registry', { params: query });
+    return extractData(res) ?? { items: [], total: 0, page: 1, limit: 25 };
+  },
   async importExcel(file) {
     const form = new FormData();
     form.append('file', file);

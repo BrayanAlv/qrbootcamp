@@ -51,8 +51,12 @@ const invitationSchema = new mongoose.Schema(
 );
 
 // Índices para consultas frecuentes (sección 22 del plan)
-// `sparse` porque invitaciones creadas antes de agregar `crmId` no lo tienen.
-invitationSchema.index({ crmId: 1, sender: 1 }, { unique: true, sparse: true });
+// Unicidad de `crmId` SOLO cuando es numérico: un `crmId` de texto puede repetirse.
+// `sparse` para omitir documentos sin `crmId`; el filtro parcial refuerza la regla.
+invitationSchema.index(
+  { crmId: 1, sender: 1 },
+  { unique: true, sparse: true, partialFilterExpression: { crmId: { $regex: '^\\d+$' } } },
+);
 invitationSchema.index({ status: 1, sender: 1 });
 invitationSchema.index({ qrTokenHash: 1 });
 invitationSchema.index({ createdAt: -1 });

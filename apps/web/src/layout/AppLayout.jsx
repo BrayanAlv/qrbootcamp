@@ -8,6 +8,8 @@ import UploadFileIcon from '@mui/icons-material/UploadFile';
 import LogoutIcon from '@mui/icons-material/Logout';
 import MenuIcon from '@mui/icons-material/Menu';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
+import PeopleOutlineIcon from '@mui/icons-material/PeopleOutline';
+import PersonAddAlt1Icon from '@mui/icons-material/PersonAddAlt1';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore.js';
 import { Wordmark } from '../components/Wordmark.jsx';
@@ -16,7 +18,9 @@ import { COLORS, FONTS, LINES } from '../theme/tokens.js';
 
 const NAV = [
   { path: '/scan', label: 'Escanear', icon: <QrCodeScannerIcon fontSize="small" /> },
+  { path: '/lista', label: 'Listado', icon: <PeopleOutlineIcon fontSize="small" /> },
   { path: '/admin/carga', label: 'Invitados', icon: <UploadFileIcon fontSize="small" />, adminOnly: true },
+  { path: '/admin/usuarios', label: 'Usuarios', icon: <PersonAddAlt1Icon fontSize="small" />, adminOnly: true },
 ];
 
 export function AppLayout() {

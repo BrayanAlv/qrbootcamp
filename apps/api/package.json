@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "test": "node --test",
     "seed": "node src/scripts/seed.js",
+    "reindex:invitations": "node src/scripts/reindexInvitations.js",
     "preview:email": "node src/scripts/previewEmail.js"
   },
   "dependencies": {

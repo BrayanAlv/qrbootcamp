@@ -8,8 +8,12 @@ import {
   getSentStats,
   deleteInvitation,
   acceptInvitation,
+  listRegistry,
 } from '../services/invitation.service.js';
 import { audit } from '../services/audit.service.js';
+
+// `crmId` numérico (solo dígitos) no puede repetirse; los de texto sí.
+const IS_NUMERIC = /^\d+$/;
 
 // Alta manual: mismas reglas que una fila de Excel (ya validadas/normalizadas
 // por `createInvitationSchema` antes de llegar acá).
@@ -17,7 +21,8 @@ export const createInvitation = asyncHandler(async (req, res) => {
   const { region, crmId, nombre, sede, asiste, email, emailCc } = req.body;
   const sender = req.auth.userId;
 
-  const exists = await Invitation.findOne({ crmId, sender });
+  const exists =
+    IS_NUMERIC.test(crmId) ? await Invitation.findOne({ crmId, sender }) : null;
   if (exists) {
     throw new AppError({ code: 'VALIDATION_ERROR', message: 'Ya existe un invitado con ese ID CRM', httpStatus: 409 });
   }
@@ -64,6 +69,13 @@ export const stats = asyncHandler(async (req, res) => {
   return res.status(200).json({ success: true, data });
 });
 
+// Padrón global de personas y sus estatus (roles de escaneo/lectura).
+export const registry = asyncHandler(async (req, res) => {
+  const { status, q, page, limit } = req.query;
+  const result = await listRegistry({ status, q, page, limit });
+  return res.status(200).json({ success: true, data: result });
+});
+
 export const removeInvitation = asyncHandler(async (req, res) => {
   const removed = await deleteInvitation({ invitationId: req.params.id, senderId: req.user._id });
   await audit('invitation_deleted', {
@@ -91,4 +103,4 @@ export const accept = asyncHandler(async (req, res) => {
   }
 });
 
-export default { createInvitation, importInvitations, listInvitations, listSent, stats, removeInvitation, accept };
+export default { createInvitation, importInvitations, listInvitations, listSent, stats, registry, removeInvitation, accept };

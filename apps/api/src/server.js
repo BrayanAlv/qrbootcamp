@@ -10,6 +10,7 @@ import { startEmailWorker } from './queues/email.worker.js';
 import healthRoutes from './routes/health.routes.js';
 import authRoutes from './routes/auth.routes.js';
 import invitationRoutes from './routes/invitation.routes.js';
+import userRoutes from './routes/user.routes.js';
 import qrRoutes from './routes/qr.routes.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import AppError from './utils/ApiError.js';
@@ -59,6 +60,7 @@ export async function createApp() {
   const api = express.Router();
   api.use('/auth', authRoutes);
   api.use('/invitations', invitationRoutes);
+  api.use('/users', userRoutes);
   api.use('/qr', qrRoutes);
   api.use(healthRoutes);
   app.use('/api/v1', api);
