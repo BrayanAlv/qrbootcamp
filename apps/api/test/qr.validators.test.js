@@ -47,3 +47,32 @@ test('guestRowSchema valida fila válida e inválida', () => {
   });
   assert.equal(bad.success, false);
 });
+
+test('guestRowSchema acepta CORREO 1 inválido si CORREO 2 es válido, y lo usa como principal', () => {
+  const parsed = guestRowSchema.safeParse({
+    region: '',
+    crmId: '999',
+    nombre: 'Ana',
+    sede: '',
+    asiste: '',
+    email: 'no-es-un-correo',
+    emailCc: 'ana.cc@example.com',
+  });
+  assert.equal(parsed.success, true);
+  assert.equal(parsed.data.email, 'ana.cc@example.com');
+  assert.equal(parsed.data.emailCc, '');
+});
+
+test('guestRowSchema falla solo si NINGUNO de los dos correos es válido', () => {
+  const parsed = guestRowSchema.safeParse({
+    region: '',
+    crmId: '999',
+    nombre: 'Ana',
+    sede: '',
+    asiste: '',
+    email: 'mal',
+    emailCc: 'tambien-mal',
+  });
+  assert.equal(parsed.success, false);
+  assert.equal(parsed.error.issues[0].message.includes('al menos un correo válido'), true);
+});

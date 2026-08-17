@@ -33,6 +33,18 @@ function mapHeaders(headerRow) {
   return map;
 }
 
+// Excel autoconvierte celdas de correo en hipervínculos ({ text, hyperlink })
+// y ExcelJS también puede devolver rich text ({ richText: [...] }) en vez de
+// un string plano: sin esto, `String(v)` da "[object Object]".
+function cellToString(v) {
+  if (v == null) return '';
+  if (typeof v === 'object') {
+    if (typeof v.text === 'string') return v.text;
+    if (Array.isArray(v.richText)) return v.richText.map((frag) => frag.text ?? '').join('');
+  }
+  return String(v);
+}
+
 async function readRows(buffer, mimeType) {
   const wb = new ExcelJS.Workbook();
   const ext = mimeType === 'text/csv' ? 'csv' : 'xlsx';
@@ -46,9 +58,9 @@ async function readRows(buffer, mimeType) {
   if (!ws) return { headerMap: {}, rows: [] };
 
   const headerRow = ws.getRow(1);
-  const headerMap = mapHeaders(headerRow.values.map((v) => (v == null ? '' : String(v).trim())));
+  const headerMap = mapHeaders(headerRow.values.map((v) => cellToString(v).trim()));
   const dataRowValues = (row) =>
-    Array.isArray(row) ? row : row.values.map((v) => (v == null ? '' : String(v).trim()));
+    Array.isArray(row) ? row : row.values.map((v) => cellToString(v).trim());
 
   const rows = [];
   ws.eachRow({ includeEmpty: false }, (row, rowNumber) => {
@@ -99,12 +111,11 @@ export async function importInvitationsFromExcel({ buffer, mimeType, senderId })
     const line = i + 2; // +2 por encabezado
     const parsed = guestRowSchema.safeParse(guest);
     if (!parsed.success) {
-      errors.push({ fila: line, errores: parsed.error.issues.map((iss) => iss.message) });
+      errors.push({ fila: line, errores: parsed.error.issues.map((iss) => iss.message), row: guest });
       return;
     }
-    const email = parsed.data.email.toLowerCase();
     if (seenCrmIds.has(parsed.data.crmId)) {
-      errors.push({ fila: line, errores: [`ID CRM duplicado en el archivo: ${parsed.data.crmId}`] });
+      errors.push({ fila: line, errores: [`ID CRM duplicado en el archivo: ${parsed.data.crmId}`], row: guest });
       return;
     }
     seenCrmIds.add(parsed.data.crmId);
@@ -115,8 +126,8 @@ export async function importInvitationsFromExcel({ buffer, mimeType, senderId })
       region: parsed.data.region,
       sede: parsed.data.sede,
       asiste: parsed.data.asiste,
-      guest: { name: parsed.data.nombre, email },
-      ccEmail: parsed.data.emailCc ? parsed.data.emailCc.toLowerCase() : null,
+      guest: { name: parsed.data.nombre, email: parsed.data.email },
+      ccEmail: parsed.data.emailCc || null,
       status: 'pendiente',
       emailStatus: { attendee: false },
     });

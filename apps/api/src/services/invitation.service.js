@@ -21,9 +21,12 @@ const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 function buildSentFilter(senderId, { status, q } = {}) {
   const filter = { sender: senderId };
 
-  // `sin_enviar` no es un estado de la invitación, sino del correo.
+  // `sin_enviar`/`fallido` no son estados de la invitación, sino del correo.
   if (status === 'sin_enviar') filter['emailStatus.attendee'] = { $ne: true };
-  else if (status) filter.status = status;
+  else if (status === 'fallido') {
+    filter['emailStatus.attendee'] = { $ne: true };
+    filter['guest.emailError'] = { $ne: null };
+  } else if (status) filter.status = status;
 
   if (q) {
     const rx = new RegExp(escapeRegex(q), 'i');

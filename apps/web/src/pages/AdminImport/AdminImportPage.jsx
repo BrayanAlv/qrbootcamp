@@ -10,19 +10,36 @@ import SendIcon from '@mui/icons-material/Send';
 import ForwardToInboxIcon from '@mui/icons-material/ForwardToInbox';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import SearchIcon from '@mui/icons-material/Search';
+import DownloadIcon from '@mui/icons-material/Download';
+import PersonAddAlt1Icon from '@mui/icons-material/PersonAddAlt1';
 import { invitationService } from '../../services/invitationService.js';
 import { extractError } from '../../services/api.js';
 import { PageHero } from '../../components/PageHero.jsx';
 import { StatusPill, STATUS_TONE } from '../../components/StatusPill.jsx';
 import { COLORS, FONTS, LINES, eyebrow, figure, properName } from '../../theme/tokens.js';
+import { toCsv, downloadCsv } from '../../utils/csv.js';
 
 const STATUS_FILTERS = [
   { value: '', label: 'Todos los estados' },
   { value: 'sin_enviar', label: 'Correo sin enviar' },
+  { value: 'fallido', label: 'Correo fallido' },
   { value: 'pendiente', label: 'Pendiente' },
   { value: 'aceptada', label: 'Aceptada' },
   { value: 'rechazada', label: 'Rechazada' },
   { value: 'expirada', label: 'Expirada' },
+];
+
+const EMPTY_GUEST_FORM = { region: '', crmId: '', nombre: '', sede: '', asiste: '', email: '', emailCc: '' };
+
+const ERROR_CSV_HEADERS = [
+  { key: 'region', label: 'REGIÓN' },
+  { key: 'crmId', label: 'ID CRM' },
+  { key: 'nombre', label: 'NOMBRE COMPLETO' },
+  { key: 'sede', label: 'SEDE' },
+  { key: 'asiste', label: 'ASISTE' },
+  { key: 'email', label: 'CORREO 1' },
+  { key: 'emailCc', label: 'CORREO 2' },
+  { key: 'errores', label: 'ERRORES' },
 ];
 
 const EMPTY_STATS = { total: 0, sinEnviar: 0, porEstado: {} };
@@ -78,12 +95,18 @@ export function AdminImportPage() {
 
   const [sendingId, setSendingId] = useState(null);
   const [bulkSending, setBulkSending] = useState(false);
-  const [sendResult, setSendResult] = useState(null);
+  const [sendProgress, setSendProgress] = useState(null);
   const [sendError, setSendError] = useState(null);
+  const sendPollRef = useRef(null);
 
   // { type: 'resend' | 'delete', inv }
   const [confirm, setConfirm] = useState(null);
   const [confirming, setConfirming] = useState(false);
+
+  const [addOpen, setAddOpen] = useState(false);
+  const [addForm, setAddForm] = useState(EMPTY_GUEST_FORM);
+  const [addSaving, setAddSaving] = useState(false);
+  const [addError, setAddError] = useState(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search.trim()), 400);
@@ -160,18 +183,63 @@ export function AdminImportPage() {
     }
   };
 
+  // El envío corre en segundo plano en el servidor (puede tardar minutos con
+  // miles de correos); acá solo hacemos polling del progreso cada 2s.
+  const pollSendStatus = useCallback(async () => {
+    try {
+      const state = await invitationService.sendStatus();
+      setSendProgress(state);
+      if (state.running) {
+        sendPollRef.current = setTimeout(pollSendStatus, 2000);
+      } else {
+        setBulkSending(false);
+        await loadList();
+      }
+    } catch (e) {
+      setSendError(extractError(e).message);
+      setBulkSending(false);
+    }
+  }, [loadList]);
+
+  useEffect(() => () => clearTimeout(sendPollRef.current), []);
+
   const onSendAllPending = async () => {
     setBulkSending(true);
     setSendError(null);
-    setSendResult(null);
+    setSendProgress(null);
     try {
-      const result = await invitationService.sendAll();
-      setSendResult(result);
-      await loadList();
+      const state = await invitationService.sendAll();
+      setSendProgress(state);
+      if (state.running) {
+        sendPollRef.current = setTimeout(pollSendStatus, 2000);
+      } else {
+        setBulkSending(false);
+        await loadList();
+      }
     } catch (e) {
       setSendError(extractError(e).message);
-    } finally {
       setBulkSending(false);
+    }
+  };
+
+  const onDownloadErrorsCsv = () => {
+    if (!importResult?.errors?.length) return;
+    const rows = importResult.errors.map((e) => ({ ...e.row, errores: e.errores.join('; ') }));
+    downloadCsv('invitados-con-error.csv', toCsv(rows, ERROR_CSV_HEADERS));
+  };
+
+  const onAddGuest = async () => {
+    setAddSaving(true);
+    setAddError(null);
+    try {
+      await invitationService.create(addForm);
+      setAddOpen(false);
+      setAddForm(EMPTY_GUEST_FORM);
+      await loadList();
+    } catch (e) {
+      setAddError(extractError(e).message);
+    } finally {
+      setAddSaving(false);
     }
   };
 
@@ -252,6 +320,11 @@ export function AdminImportPage() {
         {[inv.region, inv.sede, inv.asiste].filter(Boolean).join(' · ')}
         {inv.crmId ? ` · CRM ${inv.crmId}` : ''}
       </Typography>
+      {inv.guest.emailError && (
+        <Typography sx={{ mt: 0.5, fontSize: 11, color: COLORS.duoRed, overflowWrap: 'anywhere' }}>
+          Error de envío: {inv.guest.emailError}
+        </Typography>
+      )}
     </>
   );
 
@@ -350,6 +423,24 @@ export function AdminImportPage() {
               <Alert severity={importResult.errors?.length ? 'warning' : 'success'} sx={{ mt: 2.5 }}>
                 Total: {importResult.total} · Nuevos: {importResult.inserted} · Ya existían: {importResult.skippedExisting}
                 {importResult.errors?.length ? ` · Filas con error: ${importResult.errors.length}` : ''}
+                {importResult.errors?.length > 0 && (
+                  <Box sx={{ mt: 1 }}>
+                    {importResult.errors.map((e) => (
+                      <Typography key={e.fila} sx={{ fontSize: 12 }}>
+                        Fila {e.fila}: {e.errores.join(', ')}
+                      </Typography>
+                    ))}
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<DownloadIcon sx={{ fontSize: 15 }} />}
+                      onClick={onDownloadErrorsCsv}
+                      sx={{ mt: 1.5, fontSize: 11 }}
+                    >
+                      Descargar filas con error
+                    </Button>
+                  </Box>
+                )}
               </Alert>
             )}
           </Box>
@@ -381,15 +472,25 @@ export function AdminImportPage() {
               </Typography>
             </Box>
 
-            <Button
-              variant="outlined"
-              startIcon={bulkSending ? <CircularProgress size={14} /> : <SendIcon sx={{ fontSize: 16 }} />}
-              disabled={bulkSending}
-              onClick={onSendAllPending}
-              sx={{ alignSelf: { xs: 'stretch', sm: 'auto' } }}
-            >
-              Enviar pendientes
-            </Button>
+            <Stack direction="row" spacing={1.5} sx={{ alignSelf: { xs: 'stretch', sm: 'auto' } }}>
+              <Button
+                variant="outlined"
+                startIcon={<PersonAddAlt1Icon sx={{ fontSize: 16 }} />}
+                onClick={() => setAddOpen(true)}
+                sx={{ flex: { xs: 1, sm: 'initial' } }}
+              >
+                Agregar invitado
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={bulkSending ? <CircularProgress size={14} /> : <SendIcon sx={{ fontSize: 16 }} />}
+                disabled={bulkSending}
+                onClick={onSendAllPending}
+                sx={{ flex: { xs: 1, sm: 'initial' } }}
+              >
+                Enviar pendientes
+              </Button>
+            </Stack>
           </Stack>
 
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 3 }}>
@@ -422,9 +523,14 @@ export function AdminImportPage() {
           </Stack>
 
           {sendError && <Alert severity="error" sx={{ mb: 2.5 }}>{sendError}</Alert>}
-          {sendResult && (
-            <Alert severity="success" sx={{ mb: 2.5 }}>
-              Procesadas: {sendResult.procesadas} · Invitaciones enviadas: {sendResult.enviadas} · Correos enviados: {sendResult.enviadasTotal}
+          {sendProgress && (
+            <Alert severity={sendProgress.running ? 'info' : sendProgress.failed > 0 ? 'warning' : 'success'} sx={{ mb: 2.5 }}>
+              {sendProgress.running
+                ? `Enviando… ${sendProgress.processed}/${sendProgress.total} · ${sendProgress.failed} fallidos`
+                : sendProgress.total > 0
+                  ? `Envío terminado: ${sendProgress.sent} enviados · ${sendProgress.failed} fallidos de ${sendProgress.total}`
+                  : 'No había correos pendientes de enviar.'}
+              {' '}Un correo puede fallar de forma permanente (dominio de envío sin verificar, dirección inexistente); revisa el filtro "Correo fallido" para ver el motivo de cada uno.
             </Alert>
           )}
           {listError && <Alert severity="error" sx={{ mb: 2.5 }}>{listError}</Alert>}
@@ -592,6 +698,70 @@ export function AdminImportPage() {
             startIcon={confirming ? <CircularProgress size={14} color="inherit" /> : null}
           >
             {confirm?.type === 'resend' ? 'Reenviar' : 'Eliminar'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={addOpen} onClose={() => !addSaving && setAddOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Agregar invitado</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            {addError && <Alert severity="error">{addError}</Alert>}
+            <TextField
+              label="Nombre completo"
+              required
+              value={addForm.nombre}
+              onChange={(e) => setAddForm((f) => ({ ...f, nombre: e.target.value }))}
+            />
+            <TextField
+              label="ID CRM"
+              required
+              value={addForm.crmId}
+              onChange={(e) => setAddForm((f) => ({ ...f, crmId: e.target.value }))}
+            />
+            <Stack direction="row" spacing={2}>
+              <TextField
+                label="Región"
+                value={addForm.region}
+                onChange={(e) => setAddForm((f) => ({ ...f, region: e.target.value }))}
+                sx={{ flex: 1 }}
+              />
+              <TextField
+                label="Sede"
+                value={addForm.sede}
+                onChange={(e) => setAddForm((f) => ({ ...f, sede: e.target.value }))}
+                sx={{ flex: 1 }}
+              />
+            </Stack>
+            <TextField
+              label="Asiste"
+              value={addForm.asiste}
+              onChange={(e) => setAddForm((f) => ({ ...f, asiste: e.target.value }))}
+            />
+            <TextField
+              label="Correo 1"
+              value={addForm.email}
+              onChange={(e) => setAddForm((f) => ({ ...f, email: e.target.value }))}
+            />
+            <TextField
+              label="Correo 2 (copia)"
+              value={addForm.emailCc}
+              onChange={(e) => setAddForm((f) => ({ ...f, emailCc: e.target.value }))}
+              helperText="Alcanza con que uno de los dos correos sea válido: ese recibe el QR."
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={() => setAddOpen(false)} disabled={addSaving} sx={{ color: COLORS.textSoft }}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={onAddGuest}
+            disabled={addSaving || !addForm.nombre.trim() || !addForm.crmId.trim()}
+            variant="contained"
+            startIcon={addSaving ? <CircularProgress size={14} color="inherit" /> : null}
+          >
+            Agregar
           </Button>
         </DialogActions>
       </Dialog>

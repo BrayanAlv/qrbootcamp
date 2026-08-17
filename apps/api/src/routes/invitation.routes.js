@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import {
+  createInvitation,
   importInvitations,
   listInvitations,
   listSent,
@@ -8,12 +9,12 @@ import {
   removeInvitation,
   accept,
 } from '../controllers/invitation.controller.js';
-import { sendInvitation, resendInvitation, sendAll } from '../controllers/email.controller.js';
+import { sendInvitation, resendInvitation, sendAll, sendStatus } from '../controllers/email.controller.js';
 import { protect } from '../middleware/auth.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
 import { uploadExcel } from '../middleware/upload.js';
 import validate from '../middleware/validate.js';
-import { acceptSchema, idParamSchema, listSentSchema } from '../validators/invitation.validators.js';
+import { acceptSchema, createInvitationSchema, idParamSchema, listSentSchema } from '../validators/invitation.validators.js';
 
 const router = Router();
 
@@ -52,10 +53,12 @@ router.use(protect);
 
 // Las rutas literales van ANTES que las de `/:id`, o el parámetro las capturaría.
 router.get('/', listInvitations);
+router.post('/', requireAdmin, validate(createInvitationSchema), createInvitation);
 router.get('/sent', requireAdmin, validate(listSentSchema), listSent);
 router.get('/stats', requireAdmin, stats);
 router.post('/import', requireAdmin, importLimiter, uploadExcel.single('file'), importInvitations);
 router.post('/send', requireAdmin, sendAll);
+router.get('/send/status', requireAdmin, sendStatus);
 router.post('/:id/send', requireAdmin, validate(idParamSchema), sendInvitation);
 router.post('/:id/resend', requireAdmin, resendLimiter, validate(idParamSchema), resendInvitation);
 router.delete('/:id', requireAdmin, validate(idParamSchema), removeInvitation);

@@ -23,8 +23,16 @@ export const invitationService = {
     const res = await api.post('/invitations/import', form, { headers: { 'Content-Type': 'multipart/form-data' } });
     return extractData(res);
   },
+  async create(payload) {
+    const res = await api.post('/invitations', payload);
+    return extractData(res);
+  },
   async sendAll() {
     const res = await api.post('/invitations/send');
+    return extractData(res);
+  },
+  async sendStatus() {
+    const res = await api.get('/invitations/send/status');
     return extractData(res);
   },
   async sendOne(id) {

@@ -1,5 +1,6 @@
 import asyncHandler from '../utils/asyncHandler.js';
 import AppError from '../utils/ApiError.js';
+import { Invitation } from '../models/Invitation.model.js';
 import { importInvitationsFromExcel } from '../services/invitationImport.service.js';
 import {
   listReceivedInvitations,
@@ -9,6 +10,31 @@ import {
   acceptInvitation,
 } from '../services/invitation.service.js';
 import { audit } from '../services/audit.service.js';
+
+// Alta manual: mismas reglas que una fila de Excel (ya validadas/normalizadas
+// por `createInvitationSchema` antes de llegar acá).
+export const createInvitation = asyncHandler(async (req, res) => {
+  const { region, crmId, nombre, sede, asiste, email, emailCc } = req.body;
+  const sender = req.auth.userId;
+
+  const exists = await Invitation.findOne({ crmId, sender });
+  if (exists) {
+    throw new AppError({ code: 'VALIDATION_ERROR', message: 'Ya existe un invitado con ese ID CRM', httpStatus: 409 });
+  }
+
+  const inv = await Invitation.create({
+    sender,
+    crmId,
+    region,
+    sede,
+    asiste,
+    guest: { name: nombre, email },
+    ccEmail: emailCc || null,
+    status: 'pendiente',
+    emailStatus: { attendee: false },
+  });
+  return res.status(201).json({ success: true, data: inv });
+});
 
 export const importInvitations = asyncHandler(async (req, res) => {
   if (!req.file) {
@@ -65,4 +91,4 @@ export const accept = asyncHandler(async (req, res) => {
   }
 });
 
-export default { importInvitations, listInvitations, listSent, stats, removeInvitation, accept };
+export default { createInvitation, importInvitations, listInvitations, listSent, stats, removeInvitation, accept };

@@ -1,6 +1,6 @@
 import asyncHandler from '../utils/asyncHandler.js';
 import AppError from '../utils/ApiError.js';
-import { sendInvitationEmails, sendAllPendingEmails } from '../services/email.service.js';
+import { sendInvitationEmails, startPendingEmailsBatch, getBatchStatus } from '../services/email.service.js';
 import { audit } from '../services/audit.service.js';
 
 export const sendInvitation = asyncHandler(async (req, res) => {
@@ -19,17 +19,21 @@ export const resendInvitation = asyncHandler(async (req, res) => {
   return res.status(200).json({ success: true, data: result });
 });
 
+// Lanza (o reengancha) el batch de envío pendiente; no espera a que termine.
 export const sendAll = asyncHandler(async (req, res) => {
   if (!req.auth?.userId) {
     throw new AppError({ code: 'UNAUTHORIZED', message: 'Autenticación requerida', httpStatus: 401 });
   }
-  const results = await sendAllPendingEmails(req.auth.userId);
-  const ok = results.filter((r) => r.sent > 0).length;
-  const skipped = results.filter((r) => r.skipped).length;
-  return res.status(200).json({
-    success: true,
-    data: { procesadas: results.length, enviadas: ok, omitidas: skipped, enviadasTotal: results.reduce((a, r) => a + r.sent, 0) },
-  });
+  const state = await startPendingEmailsBatch(req.auth.userId);
+  return res.status(200).json({ success: true, data: state });
 });
 
-export default { sendInvitation, resendInvitation, sendAll };
+export const sendStatus = asyncHandler(async (req, res) => {
+  if (!req.auth?.userId) {
+    throw new AppError({ code: 'UNAUTHORIZED', message: 'Autenticación requerida', httpStatus: 401 });
+  }
+  const state = await getBatchStatus(req.auth.userId);
+  return res.status(200).json({ success: true, data: state });
+});
+
+export default { sendInvitation, resendInvitation, sendAll, sendStatus };
