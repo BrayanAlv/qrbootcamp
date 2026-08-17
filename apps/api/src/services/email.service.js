@@ -4,6 +4,8 @@ import { Invitation } from '../models/Invitation.model.js';
 import { generateQrForInvitation, toQrBuffer } from './qr.service.js';
 import { sendTransactionalEmail } from './resend.service.js';
 import { renderInvitationEmail } from './emailTemplate.service.js';
+import emailQueue from '../queues/email.queue.js';
+import batchState from '../queues/emailBatchState.js';
 
 // Referencia del adjunto inline del QR; la plantilla lo usa como `cid:qr-invitacion`.
 const QR_CID = 'qr-invitacion';
@@ -119,102 +121,32 @@ export async function sendInvitationEmails(invitationId, { force = false } = {})
   return { sent: sent ? 1 : 0, errors: sendError ? [sendError] : [], email: inv.guest.email };
 }
 
-const PAGE_SIZE = 50;
-const MAX_LAST_ERRORS = 20;
-
-function pendingQuery(senderId) {
-  return { sender: senderId, usedAt: null, 'emailStatus.attendee': { $ne: true } };
-}
-
-// Estado en memoria del batch en curso por admin. Vive solo mientras el proceso
-// corre: no sobrevive un reinicio, pero el progreso real ya está en Mongo
-// (`emailStatus.attendee`), así que reiniciar el envío después de un reinicio
-// simplemente retoma lo pendiente sin reenviar lo ya mandado.
-const runningBatches = new Map();
-
-function newBatchState(total) {
-  return { running: true, total, processed: 0, sent: 0, failed: 0, startedAt: new Date(), lastErrors: [] };
-}
-
 /**
- * Corre en segundo plano: recorre TODAS las invitaciones pendientes del admin
- * (sin tope de 200), en páginas, y actualiza el estado del batch a medida que
- * avanza. El control de ritmo frente al límite de Resend vive en el adaptador
- * (`resend.service.js`), así que aquí basta con recorrer secuencialmente.
- *
- * El cursor avanza por `_id` en vez de repetir siempre la misma query: un
- * correo fallido NO pasa a `emailStatus.attendee: true`, así que sigue
- * cumpliendo `pendingQuery` — sin el cursor, la misma página se repetiría sin
- * fin dentro de esta corrida. Con el cursor, cada invitación se intenta una
- * sola vez por corrida; si falla, sigue pendiente para el próximo click en
- * "Enviar pendientes" (así funciona el reintento).
- */
-async function runBatch(senderId, state) {
-  try {
-    let lastId = null;
-    for (;;) {
-      const query = { ...pendingQuery(senderId), ...(lastId ? { _id: { $gt: lastId } } : {}) };
-      const page = await Invitation.find(query).sort({ _id: 1 }).limit(PAGE_SIZE);
-      if (page.length === 0) break;
-      for (const inv of page) {
-        lastId = inv._id;
-        try {
-          const result = await sendInvitationEmails(inv._id);
-          state.processed += 1;
-          if (result.sent > 0) state.sent += 1;
-          else if (!result.skipped) {
-            state.failed += 1;
-            pushLastError(state, inv.guest.email, result.errors?.[0]);
-          }
-        } catch (e) {
-          state.processed += 1;
-          state.failed += 1;
-          pushLastError(state, inv.guest.email, e?.message ?? String(e));
-        }
-      }
-    }
-  } finally {
-    state.running = false;
-  }
-}
-
-function pushLastError(state, guestEmail, message) {
-  state.lastErrors.push({ guest: guestEmail, error: message ?? 'error desconocido' });
-  if (state.lastErrors.length > MAX_LAST_ERRORS) state.lastErrors.shift();
-}
-
-/**
- * Lanza (o reutiliza, si ya hay uno corriendo) el batch de envío pendiente del
- * admin. No espera a que termine: el llamador recibe el estado inicial y debe
- * consultar `getBatchStatus` para ver el progreso.
+ * Lanza (o reutiliza, si ya hay uno corriendo) el envío de lo pendiente del
+ * admin: encola cada invitación pendiente como un job de BullMQ y devuelve el
+ * estado inicial. El procesamiento real corre en `queues/email.worker.js`,
+ * en segundo plano — no espera a que termine.
  */
 export async function startPendingEmailsBatch(senderId) {
-  const existing = runningBatches.get(senderId);
+  const existing = batchState.getBatch(senderId);
   if (existing?.running) return existing;
 
-  const total = await Invitation.countDocuments(pendingQuery(senderId));
-  const state = newBatchState(total);
-  runningBatches.set(senderId, state);
-  if (total > 0) {
-    // Fire-and-forget: el loop sigue corriendo aunque la petición HTTP ya haya respondido.
-    void runBatch(senderId, state);
-  } else {
-    state.running = false;
-  }
-  return state;
+  const { total } = await emailQueue.enqueuePendingInvitations(senderId);
+  return batchState.newBatch(senderId, total);
 }
 
 /**
- * Estado del batch del admin: el que está corriendo (o el último terminado) si
- * existe, o un estado "idle" recalculado desde Mongo si nunca se lanzó uno.
+ * Estado del batch del admin: el que está corriendo (o el último terminado)
+ * si existe en memoria, o un estado "idle" recalculado desde Mongo si nunca
+ * se lanzó uno en este proceso (p. ej. tras un reinicio del servidor).
  */
 export async function getBatchStatus(senderId) {
-  const existing = runningBatches.get(senderId);
+  const existing = batchState.getBatch(senderId);
   if (existing) return existing;
 
   const [pendientes, fallidos] = await Promise.all([
-    Invitation.countDocuments(pendingQuery(senderId)),
-    Invitation.countDocuments({ ...pendingQuery(senderId), 'guest.emailError': { $ne: null } }),
+    emailQueue.countPending(senderId),
+    emailQueue.countFailed(senderId),
   ]);
   return { running: false, total: 0, processed: 0, sent: 0, failed: 0, startedAt: null, lastErrors: [], pendientes, fallidos };
 }
