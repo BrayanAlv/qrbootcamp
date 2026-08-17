@@ -16,6 +16,10 @@ const envSchema = z.object({
   // Resend limita a 10 req/s por equipo; 8 deja holgura para otros consumos de la misma key.
   EMAIL_RATE_PER_SEC: z.coerce.number().int().positive().max(10).default(8),
 
+  REDIS_URL: z.string().min(1).default('redis://redis:6379'),
+  // Jobs en paralelo que procesa el worker de envío de correos.
+  EMAIL_QUEUE_CONCURRENCY: z.coerce.number().int().positive().max(20).default(5),
+
   ACCESS_TOKEN_EXPIRES_IN: z.string().default('15m'),
   REFRESH_TOKEN_EXPIRES_IN: z.string().default('7d'),
   JWT_ISSUER: z.string().default('qr-invitations'),
@@ -41,6 +45,8 @@ export const env = {
   emailFrom: parsed.data.EMAIL_FROM,
   emailFromName: parsed.data.EMAIL_FROM_NAME,
   emailRatePerSec: parsed.data.EMAIL_RATE_PER_SEC,
+  redisUrl: parsed.data.REDIS_URL,
+  emailQueueConcurrency: parsed.data.EMAIL_QUEUE_CONCURRENCY,
   corsOrigins: parsed.data.CORS_ORIGINS.split(',')
     .map((s) => s.trim())
     .filter(Boolean),

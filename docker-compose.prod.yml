@@ -30,6 +30,8 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - backend
 
@@ -49,8 +51,25 @@ services:
     networks:
       - backend
 
+  redis:
+    image: redis:7-alpine
+    container_name: qr-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - backend
+
 volumes:
   mongodb_data:
+  redis_data:
 
 networks:
   backend:
