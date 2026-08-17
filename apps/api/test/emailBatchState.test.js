@@ -49,3 +49,18 @@ test('recordResult acota lastErrors a 20 entradas, descartando la más antigua (
 test('recordResult ignora un senderId sin batch en curso', () => {
   assert.doesNotThrow(() => recordResult('sender-inexistente', { sent: true }));
 });
+
+test('recordResult con skipped no cuenta como fallo, pero sí como procesado', () => {
+  newBatch('sender-f', 2);
+  recordResult('sender-f', { sent: false, skipped: true });
+  let state = getBatch('sender-f');
+  assert.equal(state.processed, 1);
+  assert.equal(state.failed, 0);
+  assert.equal(state.sent, 0);
+  assert.deepEqual(state.lastErrors, []);
+
+  recordResult('sender-f', { sent: true });
+  state = getBatch('sender-f');
+  assert.equal(state.processed, 2);
+  assert.equal(state.running, false);
+});

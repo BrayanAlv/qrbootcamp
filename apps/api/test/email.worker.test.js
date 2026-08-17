@@ -36,3 +36,18 @@ test('processEmailJob registra el error cuando el envío falla sin lanzar', asyn
     emailService.sendInvitationEmails = original;
   }
 });
+
+test('processEmailJob no cuenta una invitación saltada (ya usada/ya enviada) como fallo', async () => {
+  const original = emailService.sendInvitationEmails;
+  emailService.sendInvitationEmails = async () => ({ sent: 0, skipped: true, message: 'Correo ya enviado' });
+  try {
+    newBatch('sender-w3', 1);
+    await processEmailJob({ data: { invitationId: 'inv-3', senderId: 'sender-w3' } });
+    const state = getBatch('sender-w3');
+    assert.equal(state.processed, 1);
+    assert.equal(state.failed, 0);
+    assert.deepEqual(state.lastErrors, []);
+  } finally {
+    emailService.sendInvitationEmails = original;
+  }
+});

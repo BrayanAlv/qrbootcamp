@@ -18,13 +18,13 @@ export function getBatch(senderId) {
   return batches.get(senderId) ?? null;
 }
 
-export function recordResult(senderId, { sent, error, guestEmail }) {
+export function recordResult(senderId, { sent, skipped = false, error, guestEmail }) {
   const state = batches.get(senderId);
   if (!state) return;
   state.processed += 1;
   if (sent) {
     state.sent += 1;
-  } else {
+  } else if (!skipped) {
     state.failed += 1;
     state.lastErrors.push({ guest: guestEmail, error: error ?? 'error desconocido' });
     if (state.lastErrors.length > MAX_LAST_ERRORS) state.lastErrors.shift();

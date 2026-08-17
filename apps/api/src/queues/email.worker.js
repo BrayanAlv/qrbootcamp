@@ -17,7 +17,7 @@ import { recordResult } from './emailBatchState.js';
 export async function processEmailJob(job) {
   const { invitationId, senderId } = job.data;
   const result = await emailService.sendInvitationEmails(invitationId);
-  recordResult(senderId, { sent: result.sent > 0, error: result.errors?.[0], guestEmail: result.email });
+  recordResult(senderId, { sent: result.sent > 0, skipped: result.skipped, error: result.errors?.[0], guestEmail: result.email });
   return result;
 }
 
