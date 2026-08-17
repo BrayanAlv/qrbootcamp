@@ -192,7 +192,7 @@ export function AdminImportPage() {
     }
   };
 
-  // El asistente va en copia del mismo correo, así que hay un único estado de envío.
+  // `ccEmail` va en copia del mismo correo, así que hay un único estado de envío.
   const isSent = (inv) => inv.emailStatus?.attendee === true;
 
   const hasFilters = status !== '' || debouncedSearch !== '';
@@ -247,6 +247,10 @@ export function AdminImportPage() {
       </Typography>
       <Typography sx={{ fontSize: 12, color: COLORS.neutral, overflowWrap: 'anywhere' }}>
         {inv.guest.email}
+      </Typography>
+      <Typography sx={{ mt: 0.5, fontSize: 11, color: COLORS.textSoft, overflowWrap: 'anywhere' }}>
+        {[inv.region, inv.sede, inv.asiste].filter(Boolean).join(' · ')}
+        {inv.crmId ? ` · CRM ${inv.crmId}` : ''}
       </Typography>
     </>
   );
@@ -328,7 +332,7 @@ export function AdminImportPage() {
                   overflowWrap: 'anywhere',
                 }}
               >
-                {fileName || 'Columnas: nombre, email, nombre_asistente, email_asistente'}
+                {fileName || 'Columnas: región, id_crm, nombre_completo, sede, asiste, correo1, correo2'}
               </Typography>
 
               <Button
@@ -470,9 +474,9 @@ export function AdminImportPage() {
                         <StatusPill label={inv.status} tone={STATUS_TONE[inv.status] ?? 'mute'} />
                       </Stack>
 
-                      {inv.assistant && (
+                      {inv.ccEmail && (
                         <Typography sx={{ mt: 1.25, fontSize: 12, color: COLORS.textSoft }}>
-                          Asistente: {inv.assistant.name} · {inv.assistant.email}
+                          Copia: {inv.ccEmail}
                         </Typography>
                       )}
 
@@ -495,7 +499,7 @@ export function AdminImportPage() {
                     <TableHead>
                       <TableRow>
                         <TableCell sx={{ width: '30%' }}>Invitado</TableCell>
-                        <TableCell>Asistente</TableCell>
+                        <TableCell>Copia</TableCell>
                         <TableCell>Estado</TableCell>
                         <TableCell>Correo</TableCell>
                         <TableCell align="right">Acciones</TableCell>
@@ -506,11 +510,10 @@ export function AdminImportPage() {
                         <TableRow key={inv._id} hover>
                           <TableCell sx={{ py: 1.75 }}>{guestBlock(inv)}</TableCell>
                           <TableCell>
-                            {inv.assistant ? (
-                              <>
-                                <Typography sx={{ fontSize: 13 }}>{inv.assistant.name}</Typography>
-                                <Typography sx={{ fontSize: 11.5, color: COLORS.neutral }}>{inv.assistant.email}</Typography>
-                              </>
+                            {inv.ccEmail ? (
+                              <Typography sx={{ fontSize: 11.5, color: COLORS.neutral, overflowWrap: 'anywhere' }}>
+                                {inv.ccEmail}
+                              </Typography>
                             ) : (
                               <Box component="span" sx={{ color: COLORS.neutral }}>—</Box>
                             )}
@@ -566,7 +569,7 @@ export function AdminImportPage() {
             {confirm?.type === 'resend' ? (
               <>
                 Se enviará de nuevo el correo a <strong>{confirm?.inv?.guest?.email}</strong>
-                {confirm?.inv?.assistant ? ' y a su asistente' : ''}.
+                {confirm?.inv?.ccEmail ? ` y en copia a ${confirm.inv.ccEmail}` : ''}.
                 {' '}Se genera un <strong>código QR nuevo</strong> y el enviado antes deja de funcionar.
               </>
             ) : (

@@ -5,10 +5,13 @@ import { guestRowSchema } from '../validators/invitation.validators.js';
 import AppError from '../utils/ApiError.js';
 
 const HEADER_ALIASES = {
-  nombre: ['nombre', 'name', 'nombre_apellido', 'fullname', 'nombreyapellido'],
-  email: ['email', 'correo', 'mail'],
-  nombre_asistente: ['nombre_asistente', 'asistente', 'assistant', 'assistant_name', 'acompanante'],
-  email_asistente: ['email_asistente', 'correo_asistente', 'assistant_email', 'acompanante_email'],
+  region: ['region'],
+  crmId: ['idcrm', 'crmid', 'crm'],
+  nombre: ['nombrecompleto', 'nombre', 'name', 'fullname'],
+  sede: ['sede'],
+  asiste: ['asiste', 'asistencia'],
+  email: ['correo1', 'correo', 'email', 'mail'],
+  emailCc: ['correo2', 'cc', 'copia'],
 };
 
 function normalizeKey(key) {
@@ -59,20 +62,23 @@ async function readRows(buffer, mimeType) {
 function rowToGuest(headerMap, rawRow) {
   const pick = (canonical) => rawRow[headerMap[canonical]] ?? '';
   return {
+    region: pick('region'),
+    crmId: pick('crmId'),
     nombre: pick('nombre'),
+    sede: pick('sede'),
+    asiste: pick('asiste'),
     email: pick('email'),
-    nombre_asistente: pick('nombre_asistente'),
-    email_asistente: pick('email_asistente'),
+    emailCc: pick('emailCc'),
   };
 }
 
 export async function importInvitationsFromExcel({ buffer, mimeType, senderId }) {
   const { headerMap, rows } = await readRows(buffer, mimeType);
 
-  if (!headerMap.nombre || !headerMap.email) {
+  if (!headerMap.nombre || !headerMap.email || !headerMap.crmId) {
     throw new AppError({
       code: 'VALIDATION_ERROR',
-      message: 'El archivo debe tener columnas "nombre" y "email".',
+      message: 'El archivo debe tener columnas "ID CRM", "NOMBRE COMPLETO" y "CORREO 1".',
       httpStatus: 400,
     });
   }
@@ -86,7 +92,7 @@ export async function importInvitationsFromExcel({ buffer, mimeType, senderId })
 
   const valid = [];
   const errors = [];
-  const seenEmails = new Set();
+  const seenCrmIds = new Set();
 
   rows.forEach((rawRow, i) => {
     const guest = rowToGuest(headerMap, rawRow);
@@ -97,30 +103,32 @@ export async function importInvitationsFromExcel({ buffer, mimeType, senderId })
       return;
     }
     const email = parsed.data.email.toLowerCase();
-    if (seenEmails.has(email)) {
-      errors.push({ fila: line, errores: [`Email duplicado en el archivo: ${email}`] });
+    if (seenCrmIds.has(parsed.data.crmId)) {
+      errors.push({ fila: line, errores: [`ID CRM duplicado en el archivo: ${parsed.data.crmId}`] });
       return;
     }
-    seenEmails.add(email);
+    seenCrmIds.add(parsed.data.crmId);
 
     valid.push({
       sender: senderId,
+      crmId: parsed.data.crmId,
+      region: parsed.data.region,
+      sede: parsed.data.sede,
+      asiste: parsed.data.asiste,
       guest: { name: parsed.data.nombre, email },
-      assistant: parsed.data.email_asistente
-        ? { name: parsed.data.nombre_asistente || 'Asistente', email: parsed.data.email_asistente.toLowerCase() }
-        : null,
+      ccEmail: parsed.data.emailCc ? parsed.data.emailCc.toLowerCase() : null,
       status: 'pendiente',
-      emailStatus: { attendee: false, assistant: false },
+      emailStatus: { attendee: false },
     });
   });
 
   let inserted = 0;
   if (valid.length) {
-    // Insert masivo; si un email ya existe en BD se omite (unicidad).
+    // Insert masivo; si un ID CRM ya existe en BD se omite (unicidad).
     const ops = await Invitation.bulkWrite(
       valid.map((doc) => ({
         updateOne: {
-          filter: { 'guest.email': doc.guest.email, sender: doc.sender },
+          filter: { crmId: doc.crmId, sender: doc.sender },
           update: { $setOnInsert: doc },
           upsert: true,
         },

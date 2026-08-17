@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 export const INVITATION_STATUS = ['pendiente', 'aceptada', 'rechazada', 'expirada'];
 export const EMAIL_STATUS = ['pending', 'sent', 'failed'];
 
-// Subdocumento de destinatario (invitado o asistente)
+// Subdocumento del destinatario principal (invitado)
 const recipientSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
@@ -21,8 +21,16 @@ const invitationSchema = new mongoose.Schema(
 
     // Destinatario principal
     guest: { type: recipientSchema, required: true },
-    // Asistente (opcional): si no hay email de asistente, no se envía su correo
-    assistant: { type: recipientSchema, default: null },
+    // Segundo correo (CORREO 2 del Excel): va en copia del mismo mensaje. Ya
+    // no trae nombre propio (la fila solo trae un nombre completo).
+    ccEmail: { type: String, default: null, trim: true, lowercase: true },
+
+    // Identificador numérico del CRM: es la clave de deduplicación al importar.
+    crmId: { type: String, required: true, trim: true },
+    // Campos informativos del Excel, sin reglas de negocio asociadas todavía.
+    region: { type: String, default: '', trim: true },
+    sede: { type: String, default: '', trim: true },
+    asiste: { type: String, default: '', trim: true },
 
     status: { type: String, enum: INVITATION_STATUS, default: 'pendiente', index: true },
 
@@ -33,7 +41,7 @@ const invitationSchema = new mongoose.Schema(
     usedAt: { type: Date, default: null },
     acceptedAt: { type: Date, default: null },
 
-    // Estado de envío del correo. Es uno solo: el asistente viaja en copia del
+    // Estado de envío del correo. Es uno solo: `ccEmail` viaja en copia del
     // mismo mensaje, así que no tiene un estado propio que seguir.
     emailStatus: {
       attendee: { type: Boolean, default: false },
@@ -43,7 +51,8 @@ const invitationSchema = new mongoose.Schema(
 );
 
 // Índices para consultas frecuentes (sección 22 del plan)
-invitationSchema.index({ guest: 1 });
+// `sparse` porque invitaciones creadas antes de agregar `crmId` no lo tienen.
+invitationSchema.index({ crmId: 1, sender: 1 }, { unique: true, sparse: true });
 invitationSchema.index({ status: 1, sender: 1 });
 invitationSchema.index({ qrTokenHash: 1 });
 invitationSchema.index({ createdAt: -1 });

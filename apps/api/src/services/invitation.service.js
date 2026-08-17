@@ -6,10 +6,10 @@ import { extractQrToken } from '../validators/qr.validators.js';
 
 const now = () => new Date();
 
-// Invitaciones recibidas por el usuario (su email es invitado o asistente).
+// Invitaciones recibidas por el usuario (su email es invitado o va en copia).
 export async function listReceivedInvitations(userEmail) {
   return Invitation.find({
-    $or: [{ 'guest.email': userEmail }, { 'assistant.email': userEmail }],
+    $or: [{ 'guest.email': userEmail }, { ccEmail: userEmail }],
   })
     .select('-qrTokenHash')
     .sort({ createdAt: -1 });

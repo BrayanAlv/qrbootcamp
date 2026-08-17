@@ -26,8 +26,24 @@ test('extractQrToken rechaza strings cortos o vacíos', () => {
 });
 
 test('guestRowSchema valida fila válida e inválida', () => {
-  const ok = guestRowSchema.safeParse({ nombre: 'Ana', email: 'ana@x.com', nombre_asistente: '', email_asistente: '' });
+  const ok = guestRowSchema.safeParse({
+    region: 'CDMX',
+    crmId: '12345',
+    nombre: 'Ana',
+    sede: 'Presencial',
+    asiste: 'Sí',
+    email: 'ana@x.com',
+    emailCc: '',
+  });
   assert.equal(ok.success, true);
-  const bad = guestRowSchema.safeParse({ nombre: '', email: 'mal', nombre_asistente: '', email_asistente: '' });
+  const bad = guestRowSchema.safeParse({
+    region: 'CDMX',
+    crmId: '',
+    nombre: '',
+    sede: '',
+    asiste: '',
+    email: 'mal',
+    emailCc: '',
+  });
   assert.equal(bad.success, false);
 });

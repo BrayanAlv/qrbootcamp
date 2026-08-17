@@ -6,17 +6,23 @@ import { INVITATION_STATUS } from '../models/Invitation.model.js';
 const optionalEmail = z.string().trim().email().optional().or(z.literal(''));
 
 export const guestRowSchema = z.object({
+  region: z.string().trim().optional().default(''),
+  crmId: z.string().trim().min(1, 'Falta el ID CRM').regex(/^\d+$/, 'ID CRM debe ser numérico'),
   nombre: z.string().trim().min(1, 'Falta el nombre'),
+  sede: z.string().trim().optional().default(''),
+  asiste: z.string().trim().optional().default(''),
   email: z.string().trim().email('Email inválido'),
-  nombre_asistente: z.string().trim().optional().default(''),
-  email_asistente: optionalEmail,
+  emailCc: optionalEmail,
 });
 
 export const ROW_COLUMNS = [
+  'region',
+  'crmId',
   'nombre',
+  'sede',
+  'asiste',
   'email',
-  'nombre_asistente',
-  'email_asistente',
+  'emailCc',
 ];
 
 // Un ObjectId de Mongo. Sin esta validación, un id malformado revienta en Mongoose con un 500.

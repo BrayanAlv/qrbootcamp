@@ -20,13 +20,20 @@ const guests = [
 ];
 
 const statuses = ['aceptada', 'pendiente', 'expirada', 'rechazada'];
+const regiones = ['CDMX', 'NTE', 'OCC', 'SUR'];
+const sedes = ['Presencial', 'Virtual', 'Presencial', 'Virtual'];
+const asistencias = ['Sí', 'No', 'Sí', 'Sí'];
 
 const items = guests.map((guest, i) => ({
   _id: `id-${i}`,
   guest,
-  assistant: i % 2 === 0 ? { name: 'Paola Ruiz', email: 'p.ruiz@asistentes.mx' } : null,
+  ccEmail: i % 2 === 0 ? 'p.ruiz@asistentes.mx' : null,
+  crmId: String(100001 + i),
+  region: regiones[i],
+  sede: sedes[i],
+  asiste: asistencias[i],
   status: statuses[i],
-  emailStatus: { attendee: i !== 1, assistant: i === 0 },
+  emailStatus: { attendee: i !== 1 },
   usedAt: i === 0 ? '2026-03-11' : null,
   eventDate: '12 de marzo, 2026',
 }));

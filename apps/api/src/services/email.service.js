@@ -53,9 +53,8 @@ export function buildText({ firstName }) {
 const isSent = (inv) => inv.emailStatus?.attendee === true;
 
 /**
- * Envía el correo de invitación: un único mensaje al invitado, con el asistente
- * en copia si lo hay. Ambos comparten el mismo QR.
- * Idempotente: si ya se envió, no reenvía.
+ * Envía el correo de invitación: un único mensaje al invitado, con `ccEmail`
+ * en copia si lo hay. Idempotente: si ya se envió, no reenvía.
  * Con `force: true` reenvía aunque ya se hubiera enviado (p. ej. si el correo rebotó);
  * esto genera un QR nuevo y el anterior deja de ser válido.
  */
@@ -70,14 +69,14 @@ export async function sendInvitationEmails(invitationId, { force = false } = {})
 
   if (isSent(inv) && !force) return { sent: 0, skipped: true, message: 'Correo ya enviado' };
 
-  // Un único QR/token para toda la invitación (lo comparten invitado y asistente).
+  // Un único QR/token para toda la invitación (lo comparten invitado y copia).
   // El QR codifica la URL <APP_URL>/i/<token>; el escáner del staff acepta tanto
   // la URL como el token suelto. El correo no lleva enlace, solo el QR.
   const { url, tokenHash } = await generateQrForInvitation(inv._id);
   const qrBuffer = await toQrBuffer(url);
 
-  // Sale un solo correo: el invitado en `to` y el asistente en `cc`. El asunto y el
-  // cuerpo son los mismos haya o no asistente; el saludo usa el nombre del invitado.
+  // Sale un solo correo: el invitado en `to` y `ccEmail` en `cc`. El asunto y el
+  // cuerpo son los mismos haya o no copia; el saludo usa el nombre del invitado.
   const context = { firstName: inv.guest.name.split(' ')[0], qrCid: QR_CID };
 
   let sent = false;
@@ -90,7 +89,7 @@ export async function sendInvitationEmails(invitationId, { force = false } = {})
     const res = await sendTransactionalEmail(
       buildMessage({
         to: inv.guest,
-        cc: inv.assistant?.email ? [inv.assistant.email] : undefined,
+        cc: inv.ccEmail ? [inv.ccEmail] : undefined,
         subject: 'Tu acceso a Ciudad Maderas Bootcamp 2026',
         html: renderInvitationEmail(context),
         text: buildText(context),

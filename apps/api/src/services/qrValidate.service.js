@@ -40,7 +40,7 @@ export async function validateQrToken(input) {
   return {
     invitationId: invitation._id.toString(),
     guest: invitation.guest,
-    assistant: invitation.assistant,
+    ccEmail: invitation.ccEmail,
     status: invitation.status,
     eventDate: invitation.eventDate ?? null,
   };
