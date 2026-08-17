@@ -34,6 +34,18 @@ test('recordResult acumula fallos con su error, acotado a 20 entradas', () => {
   assert.deepEqual(state.lastErrors, [{ guest: 'ana@ejemplo.com', error: 'bounce' }]);
 });
 
+test('recordResult acota lastErrors a 20 entradas, descartando la más antigua (FIFO)', () => {
+  newBatch('sender-e', 25);
+  for (let i = 0; i < 25; i += 1) {
+    recordResult('sender-e', { sent: false, error: `error-${i}`, guestEmail: `g${i}@ejemplo.com` });
+  }
+  const state = getBatch('sender-e');
+  assert.equal(state.lastErrors.length, 20);
+  // Se descartaron los 5 más antiguos (error-0..error-4); el primero que queda es error-5.
+  assert.equal(state.lastErrors[0].error, 'error-5');
+  assert.equal(state.lastErrors[19].error, 'error-24');
+});
+
 test('recordResult ignora un senderId sin batch en curso', () => {
   assert.doesNotThrow(() => recordResult('sender-inexistente', { sent: true }));
 });
