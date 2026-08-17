@@ -52,3 +52,21 @@ test('getBatchStatus cae a los conteos de Mongo cuando no hay batch en memoria',
     emailQueue.countFailed = originalFailed;
   }
 });
+
+test('startPendingEmailsBatch ignora un batch "en curso" atascado hace más de 30 minutos', async () => {
+  const original = emailQueue.enqueuePendingInvitations;
+  let calls = 0;
+  emailQueue.enqueuePendingInvitations = async () => {
+    calls += 1;
+    return { total: 2 };
+  };
+  try {
+    const stale = await startPendingEmailsBatch('sender-batch-stale');
+    stale.startedAt = new Date(Date.now() - 31 * 60 * 1000);
+    const fresh = await startPendingEmailsBatch('sender-batch-stale');
+    assert.notEqual(fresh, stale);
+    assert.equal(calls, 2);
+  } finally {
+    emailQueue.enqueuePendingInvitations = original;
+  }
+});

@@ -18,6 +18,8 @@ test('buildJobs genera un job por invitación con jobId estable y reintentos', (
   assert.deepEqual(jobs[0].data, { invitationId: 'inv-1', senderId: 'sender-1' });
   assert.equal(jobs[0].opts.jobId, 'inv-1');
   assert.equal(jobs[0].opts.attempts, 3);
+  assert.equal(jobs[0].opts.removeOnComplete, true);
+  assert.equal(jobs[0].opts.removeOnFail, true);
   assert.equal(jobs[1].opts.jobId, 'inv-2');
 });
 

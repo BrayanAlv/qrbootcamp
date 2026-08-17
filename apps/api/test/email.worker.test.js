@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { processEmailJob } from '../src/queues/email.worker.js';
+import { processEmailJob, handleJobFailed } from '../src/queues/email.worker.js';
 import emailService from '../src/services/email.service.js';
 import { newBatch, getBatch } from '../src/queues/emailBatchState.js';
 
@@ -50,4 +50,20 @@ test('processEmailJob no cuenta una invitación saltada (ya usada/ya enviada) co
   } finally {
     emailService.sendInvitationEmails = original;
   }
+});
+
+test('handleJobFailed registra el fallo en el batch cuando se agotaron los reintentos', () => {
+  newBatch('sender-w4', 1);
+  handleJobFailed({ data: { senderId: 'sender-w4' }, attemptsMade: 3, opts: { attempts: 3 } }, new Error('mongo caído'));
+  const state = getBatch('sender-w4');
+  assert.equal(state.processed, 1);
+  assert.equal(state.failed, 1);
+  assert.equal(state.lastErrors[0].error, 'mongo caído');
+});
+
+test('handleJobFailed no registra nada si todavía quedan reintentos', () => {
+  newBatch('sender-w5', 1);
+  handleJobFailed({ data: { senderId: 'sender-w5' }, attemptsMade: 1, opts: { attempts: 3 } }, new Error('timeout'));
+  const state = getBatch('sender-w5');
+  assert.equal(state.processed, 0);
 });

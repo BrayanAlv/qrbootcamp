@@ -21,16 +21,34 @@ export async function processEmailJob(job) {
   return result;
 }
 
+/**
+ * BullMQ emite `failed` en cada intento fallido, no solo en el último — hay
+ * que filtrar por `attemptsMade` para no marcar la invitación como fallida
+ * antes de agotar los reintentos. Solo llega aquí una excepción real (fallo
+ * de infraestructura): un rechazo de Resend no lanza, así que nunca pasa
+ * por este camino (ver `processEmailJob`/`sendInvitationEmails`). Sin este
+ * registro, un job que agota reintentos nunca llama a `recordResult`, y
+ * `state.processed` no alcanza `state.total`: la barra de progreso queda
+ * "en curso" para siempre.
+ */
+export function handleJobFailed(job, err) {
+  if (!job) return;
+  const attempts = job.opts?.attempts ?? 1;
+  if (job.attemptsMade < attempts) return;
+  recordResult(job.data.senderId, { sent: false, error: err?.message ?? 'error desconocido' });
+}
+
 export function startEmailWorker() {
   const worker = new Worker(EMAIL_QUEUE_NAME, processEmailJob, {
-    connection: createRedisConnection(),
+    connection: createRedisConnection({ forWorker: true }),
     concurrency: env.emailQueueConcurrency,
   });
   worker.on('failed', (job, err) => {
+    handleJobFailed(job, err);
     // eslint-disable-next-line no-console
     console.error('[email-worker] job falló tras reintentos:', job?.id, err?.message);
   });
   return worker;
 }
 
-export default { processEmailJob, startEmailWorker };
+export default { processEmailJob, startEmailWorker, handleJobFailed };

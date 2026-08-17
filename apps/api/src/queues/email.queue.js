@@ -27,6 +27,13 @@ export function getEmailQueue() {
  * invitación, BullMQ no crea uno duplicado, así que reintentar "Enviar
  * pendientes" varias veces no encola el mismo correo dos veces.
  *
+ * Nota de seguridad: la comprobación de idempotencia en `sendInvitationEmails`
+ * (Mongo) es "leer y luego actuar", no atómica. Lo que realmente evita que
+ * dos workers procesen la misma invitación a la vez es la deduplicación por
+ * `jobId` de BullMQ (un solo job en cola/activo por invitación) — no Mongo.
+ * Si algún día se relaja el `jobId` (p. ej. para permitir reintentos
+ * manuales concurrentes), esta invariante deja de sostenerse.
+ *
  * `attempts`/`backoff` solo entran en juego ante un fallo real de
  * infraestructura: `sendInvitationEmails` nunca lanza por un rechazo de
  * Resend (lo captura y lo guarda en `guest.emailError`), así que un correo
@@ -41,8 +48,17 @@ export function buildJobs(invitationIds, senderId) {
       jobId: id.toString(),
       attempts: 3,
       backoff: { type: 'exponential', delay: 5000 },
-      removeOnComplete: { age: 24 * 3600, count: 1000 },
-      removeOnFail: { age: 7 * 24 * 3600 },
+      // BullMQ deduplica por jobId mientras el hash del job siga en Redis —
+      // incluida la ventana de retención tras completar/fallar. Si se retuviera
+      // (como antes), un correo que falló seguiría "ocupando" su jobId, y
+      // reintentar "Enviar pendientes" para reenviarlo sería un no-op
+      // silencioso: el job nunca se vuelve a crear aunque la invitación siga
+      // pendiente en Mongo. `true` borra el job en cuanto termina, así el
+      // dedup solo protege mientras el job sigue en cola/activo (que es lo que
+      // queremos: no encolar dos veces la misma invitación en la misma
+      // corrida), sin bloquear reintentos futuros.
+      removeOnComplete: true,
+      removeOnFail: true,
     },
   }));
 }

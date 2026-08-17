@@ -121,6 +121,16 @@ export async function sendInvitationEmails(invitationId, { force = false } = {})
   return { sent: sent ? 1 : 0, errors: sendError ? [sendError] : [], email: inv.guest.email };
 }
 
+// Tope de seguridad: si por lo que sea `running` quedó atascado en true (un
+// bug no previsto, un proceso que murió sin que BullMQ llegara a avisar),
+// pasado este tiempo se ignora el batch "en curso" y se permite lanzar uno
+// nuevo, en vez de bloquear "Enviar pendientes" para siempre.
+const STALE_BATCH_MS = 30 * 60 * 1000;
+
+function isStale(batch) {
+  return Boolean(batch?.running) && Date.now() - batch.startedAt.getTime() > STALE_BATCH_MS;
+}
+
 /**
  * Lanza (o reutiliza, si ya hay uno corriendo) el envío de lo pendiente del
  * admin: encola cada invitación pendiente como un job de BullMQ y devuelve el
@@ -129,7 +139,7 @@ export async function sendInvitationEmails(invitationId, { force = false } = {})
  */
 export async function startPendingEmailsBatch(senderId) {
   const existing = batchState.getBatch(senderId);
-  if (existing?.running) return existing;
+  if (existing?.running && !isStale(existing)) return existing;
 
   const { total } = await emailQueue.enqueuePendingInvitations(senderId);
   return batchState.newBatch(senderId, total);
