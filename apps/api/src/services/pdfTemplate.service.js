@@ -206,7 +206,7 @@ const INVITATION_TEMPLATE = `<!DOCTYPE html>
       <br>
       <br>
       <br>
-      <br>
+      
       <p class="access-title">Tu acceso es personal</p>
       <br>
      
@@ -221,7 +221,6 @@ const INVITATION_TEMPLATE = `<!DOCTYPE html>
          Antes de tu llegada, asegúrate de tener este código QR a la mano. Es personal, de un solo uso y no debe ser compartido con nadie más. Además, recuerda presentar una <strong>identificación oficial con fotografía</strong> al momento de tu acceso.
       </p>
       <p class="access-text">Guárdalo bien. Lo necesitarás para acceder al evento.</p>
-      <br>
       <br>
       <br>
       <br>

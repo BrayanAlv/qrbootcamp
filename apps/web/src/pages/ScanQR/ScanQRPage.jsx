@@ -54,6 +54,7 @@ export function ScanQRPage() {
   const codeReaderRef = useRef(null);
   const controlsRef = useRef(null); // IScannerControls real: el único objeto con .stop()
   const scanning = useRef(false); // bloquea duplicados mientras se procesa
+  const focusAppliedRef = useRef(false); // evita reaplicar el foco continuo en cada intento de decode
   const [state, setState] = useState(SCAN_STATES.IDLE);
   const [message, setMessage] = useState(null);
   const [invitation, setInvitation] = useState(null);
@@ -62,6 +63,25 @@ export function ScanQRPage() {
   // el lector, zxing libera el srcObject y el <video> se queda en negro.
   const [cameraOn, setCameraOn] = useState(false);
   const [frozenFrame, setFrozenFrame] = useState(null);
+  const [focusPoint, setFocusPoint] = useState(null); // feedback visual del tap-to-focus
+
+  // Tap-to-focus manual: best-effort, para navegadores/cámaras donde el foco
+  // continuo automático no está soportado o falla en un cuadro puntual. Si el
+  // dispositivo no soporta pointsOfInterest, el tap simplemente no hace nada.
+  const handleFocusTap = (e) => {
+    const controls = controlsRef.current;
+    if (!controls?.streamVideoCapabilitiesGet) return;
+    try {
+      const caps = controls.streamVideoCapabilitiesGet((t) => t.kind === 'video');
+      if (!caps?.pointsOfInterest) return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / rect.width;
+      const y = (e.clientY - rect.top) / rect.height;
+      controls.streamVideoConstraintsApply({ advanced: [{ pointsOfInterest: [{ x, y }] }] });
+      setFocusPoint({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+      setTimeout(() => setFocusPoint(null), 600);
+    } catch { /* sin foco manual soportado en este navegador */ }
+  };
 
   const freezeFrame = () => {
     const video = videoRef.current;
@@ -153,20 +173,34 @@ export function ScanQRPage() {
 
     // Constraints explícitos (en vez de decodeFromVideoDevice con device
     // undefined) para pedir mayor resolución y foco continuo: cuadros más
-    // nítidos que la cámara resuelve más rápido. focusMode se ignora sin
-    // romper nada en navegadores que no lo soportan.
+    // nítidos que la cámara resuelve más rápido. focusMode solo se reconoce
+    // dentro de `advanced` (no es una constraint básica); igual se refuerza
+    // más abajo vía applyConstraints una vez que el stream ya está corriendo,
+    // porque en varios Android el foco continuo solo prende si se pide
+    // después de negociado el stream, no en el getUserMedia inicial.
     const constraints = {
       video: {
         facingMode: 'environment',
         width: { ideal: 1280 },
         height: { ideal: 720 },
-        focusMode: 'continuous',
+        advanced: [{ focusMode: 'continuous' }],
       },
     };
 
     reader
       .decodeFromConstraints(constraints, videoRef.current, (result, _error, controls) => {
         controlsRef.current = controls; // se refresca en cada intento, no solo al detectar
+
+        if (!focusAppliedRef.current && controls?.streamVideoCapabilitiesGet) {
+          focusAppliedRef.current = true;
+          try {
+            const caps = controls.streamVideoCapabilitiesGet((t) => t.kind === 'video');
+            if (caps?.focusMode?.includes('continuous')) {
+              controls.streamVideoConstraintsApply({ advanced: [{ focusMode: 'continuous' }] });
+            }
+          } catch { /* getCapabilities/applyConstraints no soportado en este navegador */ }
+        }
+
         if (result?.getText() && !scanning.current) {
           scanning.current = true; // bloquea detecciones repetidas
           freezeFrame(); // antes de stop(): después el <video> ya no tiene imagen
@@ -184,7 +218,10 @@ export function ScanQRPage() {
       setState((s) => (s === SCAN_STATES.PERMISSION ? SCAN_STATES.SCANNING : s));
     }, 600);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      focusAppliedRef.current = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
 
@@ -501,11 +538,33 @@ export function ScanQRPage() {
                 ref={videoRef}
                 muted
                 playsInline
+                onClick={handleFocusTap}
                 style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
               />
               {frozenFrame && (
                 <Box component="img" src={frozenFrame} alt=""
                   sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+              )}
+              {focusPoint && (
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    left: focusPoint.x,
+                    top: focusPoint.y,
+                    width: 56,
+                    height: 56,
+                    ml: '-28px',
+                    mt: '-28px',
+                    borderRadius: '50%',
+                    border: '2px solid rgba(255,255,255,0.9)',
+                    pointerEvents: 'none',
+                    animation: 'focusRing 600ms ease-out both',
+                    '@keyframes focusRing': {
+                      from: { opacity: 1, transform: 'scale(1.3)' },
+                      to: { opacity: 0, transform: 'scale(1)' },
+                    },
+                  }}
+                />
               )}
 
               {/* marco guía + texto instructivo: mismo criterio que renderMobileCamera */}
@@ -589,12 +648,35 @@ export function ScanQRPage() {
         ref={videoRef}
         muted
         playsInline
+        onClick={handleFocusTap}
         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
       />
 
       {frozenFrame && (
         <Box component="img" src={frozenFrame} alt=""
           sx={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+      )}
+
+      {focusPoint && (
+        <Box
+          sx={{
+            position: 'absolute',
+            left: focusPoint.x,
+            top: focusPoint.y,
+            width: 56,
+            height: 56,
+            ml: '-28px',
+            mt: '-28px',
+            borderRadius: '50%',
+            border: '2px solid rgba(255,255,255,0.9)',
+            pointerEvents: 'none',
+            animation: 'focusRing 600ms ease-out both',
+            '@keyframes focusRing': {
+              from: { opacity: 1, transform: 'scale(1.3)' },
+              to: { opacity: 0, transform: 'scale(1)' },
+            },
+          }}
+        />
       )}
 
       {/* marco guía: se oculta cuando el popout de resultado toma el foco */}
