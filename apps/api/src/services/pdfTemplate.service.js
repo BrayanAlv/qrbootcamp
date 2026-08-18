@@ -137,7 +137,7 @@ const INVITATION_TEMPLATE = `<!DOCTYPE html>
       margin: 4px 0 24px;
     }
     .qr { display: block; width: 320px; height: 320px; margin: 0; }
-    .access-title { margin: 0 0 20px; font-size: 22px; font-weight: 700; }
+    .access-title { margin: 0 0 20px; padding-top: 24px; font-size: 22px; font-weight: 700; }
     .access-text { margin: 0 0 10px; font-size: 13px; line-height: 20px; }
     .divider { width: 64px; height: 3px; background-color: #8b1ff0; margin: 24px auto; border-radius: 2px; }
     .logos { display: block; margin: 0 auto; max-width: 560px; width: 100%; height: auto; }

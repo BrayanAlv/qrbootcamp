@@ -232,9 +232,20 @@ const BASE_TEMPLATE = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional
            style="width:600px;max-width:600px;background-color:#c6c3d2;">
       <tr>
         <!-- QR: viaja como adjunto inline, no como URL: Gmail y Outlook descartan las URI data: -->
+        <!-- Tarjeta blanca a juego con el QR del PDF (pdfTemplate.service.js, .qr-card):
+             border-radius y box-shadow son progressive enhancement, los clientes que no
+             los soportan (Outlook de escritorio) caen en una caja blanca cuadrada sin
+             sombra — degradación aceptable para un detalle decorativo, sin VML de por medio. -->
         <td class="px lightbg" align="center" style="padding:34px 40px 0 40px;background-color:#c6c3d2;">
-          <img src="cid:{{qrCid}}" alt="Tu código QR de acceso" class="qr" width="170"
-               style="width:170px;max-width:100%;height:auto;margin:0 auto;" />
+          <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center"
+                 style="background-color:#ffffff;border-radius:16px;box-shadow:0 8px 24px rgba(27,8,89,0.18);">
+            <tr>
+              <td align="center" style="padding:16px;">
+                <img src="cid:{{qrCid}}" alt="Tu código QR de acceso" class="qr" width="170"
+                     style="width:170px;max-width:100%;height:auto;margin:0 auto;display:block;" />
+              </td>
+            </tr>
+          </table>
         </td>
       </tr>
       <!-- Texto -->
