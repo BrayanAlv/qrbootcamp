@@ -117,7 +117,7 @@ const INVITATION_TEMPLATE = `<!DOCTYPE html>
     }
     .light { background-color: #c6c3d2; color: #000000; text-align: center; }
     .purple { background-color: #8b1ff0; color: #ffffff; text-align: center; padding: 20px 56px; }
-    .logo { display: block; margin: 0 auto 32px; height: 72px; }
+    .logo { display: block; margin: 0 auto 32px; height: 320px; }
     .greeting { margin: 0; font-size: 18px; font-weight: 600; color: #ffffff; }
     .lead { margin: 14px 0 0; font-size: 15px; line-height: 22px; }
     h1 { margin: 4px 0; font-size: 32px; line-height: 38px; font-weight: 800; color: #ffffff; text-transform: uppercase; letter-spacing: -0.5px; }
@@ -154,6 +154,19 @@ const INVITATION_TEMPLATE = `<!DOCTYPE html>
       que los límites muchas veces existen solamente hasta que alguien decide romperlos.
     </p>
     <p class="body-text">Y esta vez, tú estarás ahí.</p>
+    <p class="ponentes-title">Cinco historias. Cinco formas de ver el mundo.</p>
+    <p class="body-text">
+      Durante esta experiencia tendrás la oportunidad de aprender de grandes referentes que han llevado sus
+      límites mucho más allá: de Julio César Chávez, la disciplina y mentalidad de un campeón; de Nick Vujicic,
+      la capacidad de transformar la adversidad en propósito; de Rosario Marín, el liderazgo y la determinación
+      para abrirse camino; de Karla Wheelock, la valentía para conquistar incluso las cumbres más difíciles;
+      y de Carlos Morett, la visión para desafiar lo establecido y convertir los retos en oportunidades.
+    </p>
+    <p class="body-text">
+      Cinco historias distintas. Cinco perspectivas que pueden cambiar la manera en que ves tus propios límites.
+    </p>
+    <p class="body-text">Y todas estarán reunidas en un mismo lugar.</p>
+    <p class="body-text">Contigo.</p>
   </div>
 
   <div class="band dark page-break">
