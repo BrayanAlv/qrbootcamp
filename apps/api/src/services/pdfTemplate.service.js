@@ -203,6 +203,9 @@ const INVITATION_TEMPLATE = `<!DOCTYPE html>
 
   <div class="access-page">
     <div class="band light">
+      <br>
+      <br>
+      <br>
       <p class="access-title">Tu acceso es personal</p>
       <div class="qr-card">
         <img class="qr" src="{{qrSrc}}" alt="Tu código QR de acceso" />
@@ -212,6 +215,9 @@ const INVITATION_TEMPLATE = `<!DOCTYPE html>
         ser compartido con nadie más.
       </p>
       <p class="access-text">Guárdalo bien. Lo necesitarás para acceder al evento.</p>
+      <br>
+      <br>
+      <br>
       <div class="divider"></div>
       <img class="logos" src="https://s3lata.maderasstudio.com/email/pasarela-de-logos-1.png" alt="Grupo Ciudad Maderas" />
     </div>
