@@ -39,9 +39,9 @@ export function buildMessage({ to, cc, subject, html, text, qrBuffer }) {
 // Versión en texto plano: se muestra en clientes que no renderizan HTML y mejora
 // la puntuación anti-spam. No lleva enlace: el acceso es el QR adjunto, que lo
 // escanea el staff en la entrada.
-export function buildText({ firstName }) {
+export function buildText({ fullName }) {
   return [
-    `Hola, ${firstName}`,
+    `Hola, ${fullName}`,
     '',
     'Tu acceso a Ciudad Maderas Bootcamp 2026 está listo.',
     '',
@@ -79,7 +79,7 @@ export async function sendInvitationEmails(invitationId, { force = false } = {})
 
   // Sale un solo correo: el invitado en `to` y `ccEmail` en `cc`. El asunto y el
   // cuerpo son los mismos haya o no copia; el saludo usa el nombre del invitado.
-  const context = { firstName: inv.guest.name.split(' ')[0], qrCid: QR_CID };
+  const context = { fullName: inv.guest.name, qrCid: QR_CID };
 
   let sent = false;
   let sendError = null;

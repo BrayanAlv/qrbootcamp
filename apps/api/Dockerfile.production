@@ -1,7 +1,18 @@
 # Produccion: dependencias de runtime + arranque del API
 FROM node:24-alpine
 
+# Dependencias del sistema para Chromium (Puppeteer-core) y fuentes base para PDF.
+RUN apk add --no-cache \
+      chromium \
+      nss \
+      freetype \
+      harfbuzz \
+      ca-certificates \
+      ttf-freefont
+
 ENV NODE_ENV=production
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+
 WORKDIR /app
 
 # Native module de argon2: ya incluye prebuilds para alpine (musl)

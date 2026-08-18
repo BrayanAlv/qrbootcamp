@@ -2,7 +2,7 @@ import Handlebars from 'handlebars';
 
 // Plantilla HTML del correo de Ciudad Maderas Bootcamp 2026.
 // El diseño es fijo (copy, imágenes y colores del evento); lo único variable es
-// `firstName` y `qrCid`: la referencia al adjunto inline con el PNG del QR (`cid:`),
+// `fullName` y `qrCid`: la referencia al adjunto inline con el PNG del QR (`cid:`),
 // que el adaptador de correo envía aparte.
 //
 // Marcado pensado para clientes de correo, no para navegador: tablas anidadas,
@@ -126,7 +126,7 @@ const BASE_TEMPLATE = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional
 
 <!-- Preheader -->
 <div style="display:none;font-size:1px;color:#0b0620;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">
-  {{firstName}}, tu acceso a Ciudad Maderas Bootcamp 2026 está listo. Guarda tu código QR: es personal y de un solo uso.
+  {{fullName}}, tu acceso a Ciudad Maderas Bootcamp 2026 está listo. Guarda tu código QR: es personal y de un solo uso.
   &nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;&nbsp;&zwnj;
 </div>
 
@@ -155,7 +155,7 @@ const BASE_TEMPLATE = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional
       <tr>
         <td class="px" align="left" style="padding:46px 62px 0 62px;">
           <p class="mont" style="margin:0;font-family:'Montserrat',Helvetica,Arial,sans-serif;font-size:17px;line-height:24px;font-weight:600;color:#ffffff;">
-            Hola, {{firstName}}
+            Hola, {{fullName}}
           </p>
         </td>
       </tr>
@@ -286,7 +286,7 @@ const BASE_TEMPLATE = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional
 
 const compiled = Handlebars.compile(BASE_TEMPLATE);
 
-/** @param {{ firstName: string, qrCid: string }} context */
+/** @param {{ fullName: string, qrCid: string }} context */
 export function renderInvitationEmail(context) {
   return compiled(context);
 }

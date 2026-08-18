@@ -25,6 +25,9 @@ services:
       - .env
     environment:
       - NODE_ENV=development
+    # Necesario para que el sandbox de Chromium (Puppeteer) funcione en el contenedor.
+    cap_add:
+      - SYS_ADMIN
     volumes:
       - ./apps/api:/app
       - api_node_modules:/app/node_modules

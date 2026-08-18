@@ -12,8 +12,10 @@ import authRoutes from './routes/auth.routes.js';
 import invitationRoutes from './routes/invitation.routes.js';
 import userRoutes from './routes/user.routes.js';
 import qrRoutes from './routes/qr.routes.js';
+import pdfRoutes from './routes/pdf.routes.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import AppError from './utils/ApiError.js';
+import { closeBrowser } from './services/pdf.service.js';
 
 export async function createApp() {
   const app = express();
@@ -62,6 +64,7 @@ export async function createApp() {
   api.use('/invitations', invitationRoutes);
   api.use('/users', userRoutes);
   api.use('/qr', qrRoutes);
+  api.use('/pdf', pdfRoutes);
   api.use(healthRoutes);
   app.use('/api/v1', api);
 
@@ -90,13 +93,19 @@ export async function startServer() {
     const shutdown = async (signal) => {
       // eslint-disable-next-line no-console
       console.log(`[api] ${signal} recibido, cerrando...`);
-      try {
-        await worker.close();
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error('[api] error al cerrar el worker:', err?.message ?? err);
-      }
-      server.close(() => process.exit(0));
+try {
+      await worker.close();
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[api] error al cerrar el worker:', err?.message ?? err);
+    }
+    try {
+      await closeBrowser();
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[api] error al cerrar el browser:', err?.message ?? err);
+    }
+    server.close(() => process.exit(0));
     };
     process.on('SIGTERM', () => shutdown('SIGTERM'));
     process.on('SIGINT', () => shutdown('SIGINT'));

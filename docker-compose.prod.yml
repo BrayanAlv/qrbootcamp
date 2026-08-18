@@ -27,6 +27,9 @@ services:
       NODE_ENV: production
       # Puerto interno del API en producción (sobrescribe al del .env; el dev usa 3000)
       PORT: 3100
+    # Necesario para que el sandbox de Chromium (Puppeteer) funcione en el contenedor.
+    cap_add:
+      - SYS_ADMIN
     depends_on:
       mongodb:
         condition: service_healthy

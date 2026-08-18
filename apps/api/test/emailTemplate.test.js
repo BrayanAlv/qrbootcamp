@@ -4,7 +4,7 @@ import { renderInvitationEmail } from '../src/services/emailTemplate.service.js'
 
 // El HTML de la plantilla viene de un diseño de Mailchimp. Estas pruebas cubren
 // lo que se rompe al portarlo: merge tags sin sustituir o el QR de ejemplo colado.
-const render = (context = { firstName: 'Ana', qrCid: 'qr-invitacion' }) => renderInvitationEmail(context);
+const render = (context = { fullName: 'Ana', qrCid: 'qr-invitacion' }) => renderInvitationEmail(context);
 
 test('el QR apunta al adjunto inline, no a una URL externa', () => {
   const html = render();
@@ -14,7 +14,7 @@ test('el QR apunta al adjunto inline, no a una URL externa', () => {
 });
 
 test('el nombre se interpola en el saludo y en el preheader', () => {
-  const html = render({ firstName: 'Ana', qrCid: 'qr-invitacion' });
+  const html = render({ fullName: 'Ana', qrCid: 'qr-invitacion' });
 
   assert.match(html, /Hola, Ana/);
   assert.match(html, /Ana, tu acceso a Ciudad Maderas Bootcamp 2026/);
@@ -168,7 +168,7 @@ test('el correo se declara solo claro para que el modo oscuro no lo re-invierta'
 });
 
 test('el nombre se escapa: viene de un Excel y puede traer caracteres HTML', () => {
-  const html = render({ firstName: 'Ana & <b>Luis</b>', qrCid: 'qr-invitacion' });
+  const html = render({ fullName: 'Ana & <b>Luis</b>', qrCid: 'qr-invitacion' });
 
   assert.match(html, /Hola, Ana &amp; &lt;b&gt;Luis&lt;\/b&gt;/);
 });

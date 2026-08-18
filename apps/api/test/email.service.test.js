@@ -59,7 +59,7 @@ test('buildMessage adjunta el QR inline con contentId y contenido en base64', ()
 });
 
 test('buildText saluda por el nombre y remite al QR adjunto, sin enlaces', () => {
-  const text = buildText({ firstName: 'Ana' });
+  const text = buildText({ fullName: 'Ana' });
 
   assert.match(text, /Hola, Ana/);
   assert.match(text, /código QR/);
