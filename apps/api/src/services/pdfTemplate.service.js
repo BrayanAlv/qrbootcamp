@@ -116,7 +116,7 @@ const INVITATION_TEMPLATE = `<!DOCTYPE html>
       color: #e7e4f5;
     }
     .light { background-color: #c6c3d2; color: #000000; text-align: center; }
-    .purple { background-color: #8b1ff0; color: #ffffff; text-align: center; padding: 20px 56px; }
+    .purple { background-color: #8b1ff0; color: #ffffff; text-align: center; padding: 26px 56px; }
     .logo { display: block; margin: 0 auto 32px; height: 320px; }
     .greeting { margin: 0; font-size: 18px; font-weight: 600; color: #ffffff; }
     .lead { margin: 14px 0 0; font-size: 15px; line-height: 22px; }
@@ -128,12 +128,29 @@ const INVITATION_TEMPLATE = `<!DOCTYPE html>
     /* Salto de página: la página 1 termina en "Y esta vez, tú estarás ahí." y la
        página 2 arranca con el encabezado de ponentes ("Cinco historias..."). */
     .page-break { page-break-before: always; }
-    .qr { display: block; margin: 0 auto 28px; width: 220px; height: 220px; }
-    .access-title { margin: 0 0 12px; font-size: 22px; font-weight: 700; }
+    .qr-card {
+      display: inline-block;
+      background-color: #ffffff;
+      padding: 18px;
+      border-radius: 18px;
+      box-shadow: 0 8px 24px rgba(27, 8, 89, 0.18);
+      margin: 4px 0 24px;
+    }
+    .qr { display: block; width: 260px; height: 260px; margin: 0; }
+    .access-title { margin: 0 0 20px; font-size: 22px; font-weight: 700; }
     .access-text { margin: 0 0 10px; font-size: 13px; line-height: 20px; }
-    .logos { display: block; margin: 28px auto 0; max-width: 560px; width: 100%; height: auto; }
-    .footer-text { margin: 0; font-size: 11px; }
-    .footer-text img { display: inline-block; vertical-align: middle; width: 70px; height: auto; margin-left: 6px; }
+    .divider { width: 64px; height: 3px; background-color: #8b1ff0; margin: 24px auto; border-radius: 2px; }
+    .logos { display: block; margin: 0 auto; max-width: 560px; width: 100%; height: auto; }
+    .footer-text {
+      margin: 0;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .footer-text img { display: block; width: 72px; height: auto; }
   </style>
 </head>
 <body>
@@ -170,13 +187,16 @@ const INVITATION_TEMPLATE = `<!DOCTYPE html>
   </div>
 
   <div class="band light">
-    <img class="qr" src="{{qrSrc}}" alt="Tu código QR de acceso" />
     <p class="access-title">Tu acceso es personal</p>
+    <div class="qr-card">
+      <img class="qr" src="{{qrSrc}}" alt="Tu código QR de acceso" />
+    </div>
     <p class="access-text">
       Antes de tu llegada, asegúrate de tener este código QR a la mano. Es personal, de un solo uso y no debe
       ser compartido con nadie más.
     </p>
     <p class="access-text">Guárdalo bien. Lo necesitarás para acceder al evento.</p>
+    <div class="divider"></div>
     <img class="logos" src="https://s3lata.maderasstudio.com/email/pasarela-de-logos-1.png" alt="Grupo Ciudad Maderas" />
   </div>
 
