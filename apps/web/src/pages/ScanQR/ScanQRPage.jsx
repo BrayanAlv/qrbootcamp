@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { BrowserQRCodeReader } from '@zxing/browser';
+import { DecodeHintType } from '@zxing/library';
 import {
   Box, Paper, Typography, CircularProgress, ButtonBase,
   IconButton, Dialog, DialogContent, useMediaQuery, useTheme,
@@ -142,11 +143,29 @@ export function ScanQRPage() {
   useEffect(() => {
     if (state !== SCAN_STATES.PERMISSION) return undefined;
 
-    const reader = new BrowserQRCodeReader();
+    // TRY_HARDER: prueba más combinaciones de patrones por cuadro (QR
+    // inclinado/borroso). delayBetweenScanAttempts baja de los 500ms por
+    // default a 120ms: la cámara reintenta ~4x más seguido.
+    const hints = new Map();
+    hints.set(DecodeHintType.TRY_HARDER, true);
+    const reader = new BrowserQRCodeReader(hints, { delayBetweenScanAttempts: 120 });
     codeReaderRef.current = reader;
 
+    // Constraints explícitos (en vez de decodeFromVideoDevice con device
+    // undefined) para pedir mayor resolución y foco continuo: cuadros más
+    // nítidos que la cámara resuelve más rápido. focusMode se ignora sin
+    // romper nada en navegadores que no lo soportan.
+    const constraints = {
+      video: {
+        facingMode: 'environment',
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        focusMode: 'continuous',
+      },
+    };
+
     reader
-      .decodeFromVideoDevice(undefined, videoRef.current, (result, _error, controls) => {
+      .decodeFromConstraints(constraints, videoRef.current, (result, _error, controls) => {
         controlsRef.current = controls; // se refresca en cada intento, no solo al detectar
         if (result?.getText() && !scanning.current) {
           scanning.current = true; // bloquea detecciones repetidas

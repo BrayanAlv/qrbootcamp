@@ -72,7 +72,7 @@ const BASE_TEMPLATE = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional
       .wrap{width:100%!important;}
       .px{padding-left:26px!important;padding-right:26px!important;}
       .logo{width:230px!important;}
-      /* El PNG del QR se genera a 300px, así que a 200 sigue sin interpolar y se
+      /* El PNG del QR se genera a 440px, así que a 200 sigue sin interpolar y se
          escanea mejor en la puerta (pantalla con poco brillo, lectores lentos). */
       .qr{width:200px!important;}
     }
@@ -254,7 +254,8 @@ const BASE_TEMPLATE = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional
           <p class="mont" style="margin:0 0 12px 0;font-size:18px;line-height:23px;font-weight:700;color:#000000!important;text-align:center!important;">Tu acceso es personal</p>
           <p class="mont" style="margin:0 0 12px 0;font-size:11.5px;line-height:18px;font-weight:400;color:#000000!important;text-align:center!important;">
             Antes de tu llegada, asegúrate de tener este código QR a la mano. Es personal, de un solo uso y no debe
-            ser compartido con nadie más.
+            ser compartido con nadie más. Además, recuerda presentar una <strong>identificación oficial con fotografía</strong>
+            al momento de tu acceso.
           </p>
           <p class="mont" style="margin:0;font-size:11.5px;line-height:18px;font-weight:400;color:#000000!important;text-align:center!important;">
             Guárdalo bien. Lo necesitarás para acceder al evento.

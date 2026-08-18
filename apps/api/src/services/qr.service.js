@@ -41,12 +41,20 @@ export async function findInvitationByHash(tokenHash) {
   return Invitation.findOne({ qrTokenHash: tokenHash });
 }
 
-// 'H' (no 'M'): el logo tapa el centro, así que hace falta el nivel de
-// corrección de errores más alto para que el QR se siga pudiendo escanear.
+// 'Q' (no 'M'): el logo tapa el centro, así que hace falta corrección de
+// errores alta para que el QR se siga pudiendo escanear. 'Q' tolera ~25% de
+// daño/oclusión, bien por encima del ~14% que cubre el logo (ver box más
+// abajo) — y a diferencia de 'H' (~30%) suele caber en una versión de QR más
+// chica para la misma URL, es decir menos módulos y cada uno más grande, lo
+// que la cámara enfoca y decodifica más rápido.
+// margin=4 (no 2): zona de silencio mínima recomendada por ISO/IEC 18004
+// para que la cámara ubique los patrones de esquina sin demora. width sube
+// de 400 a 440 para compensar el margen extra y que el módulo de datos no
+// se achique.
 const QR_OPTIONS = {
-  errorCorrectionLevel: 'H',
-  margin: 2,
-  width: 400,
+  errorCorrectionLevel: 'Q',
+  margin: 4,
+  width: 440,
 };
 
 const LOGO_URL = 'https://s3lata.maderasstudio.com/email/logo-bootcamp-color.png';
