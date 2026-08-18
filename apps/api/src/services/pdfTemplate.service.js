@@ -128,6 +128,21 @@ const INVITATION_TEMPLATE = `<!DOCTYPE html>
     /* Salto de página: la página 1 termina en "Y esta vez, tú estarás ahí." y la
        página 2 arranca con el encabezado de ponentes ("Cinco historias..."). */
     .page-break { page-break-before: always; }
+    /* La franja del QR + el footer miden ~904px juntas; forzarlas a su propia
+       hoja (en vez de dejarlas caer donde termine el texto) evita que la
+       tarjeta del QR se corte a la mitad entre hoja 1 y hoja 2. min-height:
+       100vh + flex las empuja al borde inferior de esa hoja, como un footer
+       real, en vez de quedar varadas cerca del borde superior de una hoja
+       casi en blanco. 100vh aquí sí equivale a una hoja: el viewport de
+       Puppeteer se dimensiona a la proporción de A4 (ver defaultViewport en
+       config/pdf.js) y el llamador pasa pdf: { margin: 0 }. */
+    .access-page {
+      page-break-before: always;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+    }
     .qr-card {
       display: inline-block;
       background-color: #ffffff;
@@ -186,32 +201,27 @@ const INVITATION_TEMPLATE = `<!DOCTYPE html>
     <p class="body-text">Contigo.</p>
   </div>
 
-  <div class="band light">
-    <br>
-    <br>
-    <br>
-    <br>
-    <br>
-    <br>
-    <p class="access-title">Tu acceso es personal</p>
-    <br>
-    <div class="qr-card">
-      <img class="qr" src="{{qrSrc}}" alt="Tu código QR de acceso" />
+  <div class="access-page">
+    <div class="band light">
+      <p class="access-title">Tu acceso es personal</p>
+      <div class="qr-card">
+        <img class="qr" src="{{qrSrc}}" alt="Tu código QR de acceso" />
+      </div>
+      <p class="access-text">
+        Antes de tu llegada, asegúrate de tener este código QR a la mano. Es personal, de un solo uso y no debe
+        ser compartido con nadie más.
+      </p>
+      <p class="access-text">Guárdalo bien. Lo necesitarás para acceder al evento.</p>
+      <div class="divider"></div>
+      <img class="logos" src="https://s3lata.maderasstudio.com/email/pasarela-de-logos-1.png" alt="Grupo Ciudad Maderas" />
     </div>
-    <p class="access-text">
-      Antes de tu llegada, asegúrate de tener este código QR a la mano. Es personal, de un solo uso y no debe
-      ser compartido con nadie más.
-    </p>
-    <p class="access-text">Guárdalo bien. Lo necesitarás para acceder al evento.</p>
-    <div class="divider"></div>
-    <img class="logos" src="https://s3lata.maderasstudio.com/email/pasarela-de-logos-1.png" alt="Grupo Ciudad Maderas" />
-  </div>
 
-  <div class="purple">
-    <p class="footer-text">
-      Mailing and ticketing service provided by:
-      <img src="https://s3lata.maderasstudio.com/email/maderas-studio-logo-blanco.png" alt="Maderas Studio" />
-    </p>
+    <div class="purple">
+      <p class="footer-text">
+        Mailing and ticketing service provided by:
+        <img src="https://s3lata.maderasstudio.com/email/maderas-studio-logo-blanco.png" alt="Maderas Studio" />
+      </p>
+    </div>
   </div>
 
 </body>
