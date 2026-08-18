@@ -14,7 +14,7 @@ import { renderInvitationEmail } from '../services/emailTemplate.service.js';
 import { buildText } from '../services/email.service.js';
 
 const firstName = process.argv[2] || 'Ana';
-const context = { fullName: firstName, qrCid: 'qr-invitacion' };
+const context = { fullName: firstName, qrSrc: 'cid:qr-invitacion' };
 
 const dir = await mkdtemp(path.join(tmpdir(), 'preview-email-'));
 const file = path.join(dir, 'invitacion.html');

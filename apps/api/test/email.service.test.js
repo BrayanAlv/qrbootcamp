@@ -58,6 +58,26 @@ test('buildMessage adjunta el QR inline con contentId y contenido en base64', ()
   assert.equal(qr.contentType, 'image/png');
 });
 
+test('buildMessage sin pdfBuffer solo adjunta el QR', () => {
+  const msg = buildMessage({ to: { email: 'ana@ejemplo.com' }, subject: 's', html: '', text: '', qrBuffer });
+
+  assert.equal(msg.attachments.length, 1);
+});
+
+test('buildMessage con pdfBuffer adjunta también el PDF, sin contentId', () => {
+  const pdfBuffer = Buffer.from('fake-pdf-bytes');
+  const msg = buildMessage({ to: { email: 'ana@ejemplo.com' }, subject: 's', html: '', text: '', qrBuffer, pdfBuffer });
+
+  assert.equal(msg.attachments.length, 2);
+  const [qr, pdf] = msg.attachments;
+  assert.equal(qr.contentId, 'qr-invitacion');
+  assert.equal(pdf.filename, 'invitacion-ciudad-maderas-bootcamp-2026.pdf');
+  assert.equal(pdf.content, pdfBuffer.toString('base64'));
+  assert.equal(pdf.contentType, 'application/pdf');
+  // Sin contentId: es un adjunto normal, no uno inline referenciado por `cid:`.
+  assert.equal('contentId' in pdf, false);
+});
+
 test('buildText saluda por el nombre y remite al QR adjunto, sin enlaces', () => {
   const text = buildText({ fullName: 'Ana' });
 
@@ -139,6 +159,7 @@ test('sendInvitationEmails incluye el correo del invitado en el resultado', asyn
   const { Invitation } = await import('../src/models/Invitation.model.js');
   const { getResendClient } = await import('../src/services/resend.service.js');
   const { sendInvitationEmails } = await import('../src/services/email.service.js');
+  const { default: pdfService } = await import('../src/services/pdf.service.js');
 
   // El archivo ya fija RESEND_API_KEY='re_test_key' arriba, así que hay un
   // cliente real de Resend: sin mockear `emails.send` este test haría una
@@ -146,6 +167,12 @@ test('sendInvitationEmails incluye el correo del invitado en el resultado', asyn
   // mockea el método del cliente.
   const client = getResendClient();
   t.mock.method(client.emails, 'send', async () => ({ data: { id: 'email-1' }, error: null }));
+
+  // El PDF adjunto se genera con Chromium real (Puppeteer); este entorno de
+  // test no tiene el binario instalado (solo la imagen Docker de producción
+  // lo trae), así que se mockea `generatePdfFromHtml` en vez de depender de
+  // un navegador real.
+  t.mock.method(pdfService, 'generatePdfFromHtml', async () => Buffer.from('fake-pdf-bytes'));
 
   const fakeInvitation = {
     _id: 'inv-1',

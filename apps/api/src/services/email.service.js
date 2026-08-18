@@ -1,16 +1,40 @@
 import env from '../config/env.js';
 import AppError from '../utils/ApiError.js';
 import { Invitation } from '../models/Invitation.model.js';
-import { generateQrForInvitation, toQrBuffer } from './qr.service.js';
+import { generateQrForInvitation, toQrBuffer, toQrDataUrl } from './qr.service.js';
 import { sendTransactionalEmail } from './resend.service.js';
 import { renderInvitationEmail } from './emailTemplate.service.js';
+import pdfService from './pdf.service.js';
 import emailQueue from '../queues/email.queue.js';
 import batchState from '../queues/emailBatchState.js';
 
 // Referencia del adjunto inline del QR; la plantilla lo usa como `cid:qr-invitacion`.
 const QR_CID = 'qr-invitacion';
+const PDF_FILENAME = 'invitacion-ciudad-maderas-bootcamp-2026.pdf';
 
-export function buildMessage({ to, cc, subject, html, text, qrBuffer }) {
+export function buildMessage({ to, cc, subject, html, text, qrBuffer, pdfBuffer }) {
+  const attachments = [
+    {
+      filename: 'invitacion-qr.png',
+      content: qrBuffer.toString('base64'),
+      contentId: QR_CID,
+      // Explícito a propósito: sin él Resend puede etiquetar el adjunto como
+      // application/octet-stream y Gmail deja de resolver el `cid:`, mostrando
+      // el QR como imagen rota.
+      contentType: 'image/png',
+    },
+  ];
+
+  // El PDF es opcional en `buildMessage` (no en `sendInvitationEmails`): así los
+  // tests que arman el mensaje a mano no necesitan generar un PDF de verdad.
+  if (pdfBuffer) {
+    attachments.push({
+      filename: PDF_FILENAME,
+      content: pdfBuffer.toString('base64'),
+      contentType: 'application/pdf',
+    });
+  }
+
   return {
     from: `${env.emailFromName} <${env.emailFrom}>`,
     // Solo la dirección, sin el nombre: los nombres vienen de una importación de
@@ -22,17 +46,7 @@ export function buildMessage({ to, cc, subject, html, text, qrBuffer }) {
     subject,
     html,
     text,
-    attachments: [
-      {
-        filename: 'invitacion-qr.png',
-        content: qrBuffer.toString('base64'),
-        contentId: QR_CID,
-        // Explícito a propósito: sin él Resend puede etiquetar el adjunto como
-        // application/octet-stream y Gmail deja de resolver el `cid:`, mostrando
-        // el QR como imagen rota.
-        contentType: 'image/png',
-      },
-    ],
+    attachments,
   };
 }
 
@@ -79,7 +93,27 @@ export async function sendInvitationEmails(invitationId, { force = false } = {})
 
   // Sale un solo correo: el invitado en `to` y `ccEmail` en `cc`. El asunto y el
   // cuerpo son los mismos haya o no copia; el saludo usa el nombre del invitado.
-  const context = { fullName: inv.guest.name, qrCid: QR_CID };
+  const context = { fullName: inv.guest.name, qrSrc: `cid:${QR_CID}` };
+
+  // El PDF adjunto reutiliza la misma plantilla del correo (mismo diseño), solo
+  // que el QR va como data URI en vez de `cid:`: Puppeteer no es un cliente de
+  // correo y sí puede resolver `data:`. Sin try/catch a propósito: si falla
+  // (Chromium caído, timeout, imagen que no carga), la excepción sube tal cual
+  // y el correo NO se envía — se trata como un fallo de infraestructura para
+  // que la cola de BullMQ lo reintente (ver `email.worker.js`), en vez de
+  // mandar la invitación sin el PDF.
+  const qrDataUri = await toQrDataUrl(url);
+  // pdfMode: true quita la imagen de fondo (ver comentario en emailTemplate.service.js
+  // sobre por qué Chromium se cuelga al imprimir esa combinación a PDF).
+  const pdfHtml = renderInvitationEmail({ fullName: inv.guest.name, qrSrc: qrDataUri, pdfMode: true });
+  const pdfBuffer = await pdfService.generatePdfFromHtml(pdfHtml);
+  if (pdfBuffer.length > env.pdfMaxAttachmentBytes) {
+    throw new AppError({
+      code: 'PDF_TOO_LARGE',
+      message: `El PDF de la invitación excede el tamaño máximo de ${Math.round(env.pdfMaxAttachmentBytes / 1024 / 1024)} MB`,
+      httpStatus: 413,
+    });
+  }
 
   let sent = false;
   let sendError = null;
@@ -96,6 +130,7 @@ export async function sendInvitationEmails(invitationId, { force = false } = {})
         html: renderInvitationEmail(context),
         text: buildText(context),
         qrBuffer,
+        pdfBuffer,
       }),
       { idempotencyKey: `inv-${inv._id}-${tokenHash.slice(0, 16)}` },
     );

@@ -64,6 +64,10 @@ async function hardenPageForPdf(page) {
       // Sin navegación principal (usamos setContent): todo lo que llegue es un
       // subrecurso (img, css, font, xhr...). document/other se continúa igual.
       if (type === 'document' || type === 'other') return req.continue();
+      // Un `data:` URI no hace ninguna petición de red (Chromium lo decodifica
+      // inline), así que no es un vector SSRF: se deja pasar sin evaluarlo contra
+      // la allowlist de hosts. Lo usa el QR embebido en el PDF de la invitación.
+      if (url.startsWith('data:')) return req.continue();
       try {
         const parsed = new URL(url);
         const isHttps = parsed.protocol === 'https:';
