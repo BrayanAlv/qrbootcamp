@@ -187,7 +187,14 @@ const INVITATION_TEMPLATE = `<!DOCTYPE html>
   </div>
 
   <div class="band light">
+    <br>
+    <br>
+    <br>
+    <br>
+    <br>
+    <br>
     <p class="access-title">Tu acceso es personal</p>
+    <br>
     <div class="qr-card">
       <img class="qr" src="{{qrSrc}}" alt="Tu código QR de acceso" />
     </div>
