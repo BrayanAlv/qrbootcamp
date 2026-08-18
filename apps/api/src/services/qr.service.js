@@ -49,8 +49,7 @@ const QR_OPTIONS = {
   width: 300,
 };
 
-// Mismo logo que ya usan el header del correo y el del PDF de ejemplo.
-const LOGO_URL = 'https://s3lata.maderasstudio.com/email/logobootcampfinal.png';
+const LOGO_URL = 'https://s3lata.maderasstudio.com/email/logo-bootcamp-color.png';
 
 // Insignia (logo + placa blanca) cacheada a nivel de proceso: se prepara una
 // sola vez y se reutiliza en todos los QR que se generen después (un envío
@@ -70,9 +69,9 @@ async function getLogoBadge() {
   return logoBadgePromise;
 }
 
-// logobootcampfinal.png es un wordmark alto (no un ícono cuadrado), así que
-// se recorta el margen transparente y se ajusta dentro de una caja cuadrada
-// (limitando también por altura) antes de ponerlo sobre una placa blanca.
+// LOGO_URL puede traer margen transparente, así que se recorta y se ajusta
+// dentro de una caja cuadrada (limitando también por altura) antes de
+// ponerlo sobre una placa blanca.
 async function buildLogoBadge() {
   const res = await fetch(LOGO_URL);
   if (!res.ok) throw new Error(`HTTP ${res.status} al descargar el logo`);
@@ -80,7 +79,7 @@ async function buildLogoBadge() {
 
   const trimmed = await sharp(logoBytes).trim().toBuffer();
 
-  const box = Math.round(QR_OPTIONS.width * 0.24);
+  const box = Math.round(QR_OPTIONS.width * 0.32);
   const resizedLogo = await sharp(trimmed)
     .resize({ width: box, height: box, fit: 'inside' })
     .toBuffer();
