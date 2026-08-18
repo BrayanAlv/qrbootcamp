@@ -199,6 +199,8 @@ const BASE_TEMPLATE = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional
           <p class="mont" style="margin:0 0 12px 0;font-family:'Montserrat',Helvetica,Arial,sans-serif;font-size:13px;line-height:19px;font-weight:700;color:#ffffff;text-transform:uppercase;letter-spacing:1.1px;">
             Cinco historias. Cinco formas de ver el mundo.
           </p>
+          <!-- Salto de página solo para el PDF de la invitación; el correo no pagina. -->
+          {{#if pdfMode}}<div style="page-break-after:always;"></div>{{/if}}
           <p class="mont" style="margin:0;font-family:'Montserrat',Helvetica,Arial,sans-serif;font-size:13px;line-height:21px;font-weight:400;color:#e7e4f5;text-align:justify;">
             Durante esta experiencia tendrás la oportunidad de aprender de grandes referentes que han llevado sus
             límites mucho más allá: de Julio César Chávez, la disciplina y mentalidad de un campeón; de Nick Vujicic,
