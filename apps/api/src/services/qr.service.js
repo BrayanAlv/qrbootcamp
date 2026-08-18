@@ -46,7 +46,7 @@ export async function findInvitationByHash(tokenHash) {
 const QR_OPTIONS = {
   errorCorrectionLevel: 'H',
   margin: 2,
-  width: 300,
+  width: 400,
 };
 
 const LOGO_URL = 'https://s3lata.maderasstudio.com/email/logo-bootcamp-color.png';
@@ -79,13 +79,16 @@ async function buildLogoBadge() {
 
   const trimmed = await sharp(logoBytes).trim().toBuffer();
 
-  const box = Math.round(QR_OPTIONS.width * 0.32);
+  // 0.38 (~14% del área del QR): más grande que antes pero sigue por debajo
+  // del ~30% que tolera la corrección de errores 'H', así que el QR sigue
+  // siendo escaneable.
+  const box = Math.round(QR_OPTIONS.width * 0.38);
   const resizedLogo = await sharp(trimmed)
     .resize({ width: box, height: box, fit: 'inside' })
     .toBuffer();
   const { width: logoW, height: logoH } = await sharp(resizedLogo).metadata();
 
-  const padding = 9;
+  const padding = Math.round(box * 0.1);
   const plateW = logoW + padding * 2;
   const plateH = logoH + padding * 2;
   const radius = Math.round(Math.min(plateW, plateH) * 0.16);

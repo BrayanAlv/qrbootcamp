@@ -131,12 +131,12 @@ const INVITATION_TEMPLATE = `<!DOCTYPE html>
     .qr-card {
       display: inline-block;
       background-color: #ffffff;
-      padding: 18px;
-      border-radius: 18px;
+      padding: 22px;
+      border-radius: 22px;
       box-shadow: 0 8px 24px rgba(27, 8, 89, 0.18);
       margin: 4px 0 24px;
     }
-    .qr { display: block; width: 260px; height: 260px; margin: 0; }
+    .qr { display: block; width: 320px; height: 320px; margin: 0; }
     .access-title { margin: 0 0 20px; font-size: 22px; font-weight: 700; }
     .access-text { margin: 0 0 10px; font-size: 13px; line-height: 20px; }
     .divider { width: 64px; height: 3px; background-color: #8b1ff0; margin: 24px auto; border-radius: 2px; }
