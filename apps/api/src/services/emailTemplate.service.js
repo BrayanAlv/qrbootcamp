@@ -140,8 +140,8 @@ const BASE_TEMPLATE = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional
       <v:textbox inset="0,0,0,0"><![endif]-->
 
     <table role="presentation" class="wrap" width="600" cellpadding="0" cellspacing="0" border="0"
-           {{#unless pdfMode}}background="https://s3lata.maderasstudio.com/email/fondo-correo.png"{{/unless}}
-           style="width:600px;max-width:600px;background-color:#1b0859;{{#unless pdfMode}}background-image:url('https://s3lata.maderasstudio.com/email/fondo-correo.png');background-repeat:no-repeat;background-position:top center;background-size:cover;{{/unless}}">
+           background="https://s3lata.maderasstudio.com/email/fondo-correo.png"
+           style="width:600px;max-width:600px;background-color:#1b0859;background-image:url('https://s3lata.maderasstudio.com/email/fondo-correo.png');background-repeat:no-repeat;background-position:top center;background-size:cover;">
 
       <!-- LOGO -->
       <tr>
@@ -199,8 +199,6 @@ const BASE_TEMPLATE = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional
           <p class="mont" style="margin:0 0 12px 0;font-family:'Montserrat',Helvetica,Arial,sans-serif;font-size:13px;line-height:19px;font-weight:700;color:#ffffff;text-transform:uppercase;letter-spacing:1.1px;">
             Cinco historias. Cinco formas de ver el mundo.
           </p>
-          <!-- Salto de página solo para el PDF de la invitación; el correo no pagina. -->
-          {{#if pdfMode}}<div style="page-break-after:always;"></div>{{/if}}
           <p class="mont" style="margin:0;font-family:'Montserrat',Helvetica,Arial,sans-serif;font-size:13px;line-height:21px;font-weight:400;color:#e7e4f5;text-align:justify;">
             Durante esta experiencia tendrás la oportunidad de aprender de grandes referentes que han llevado sus
             límites mucho más allá: de Julio César Chávez, la disciplina y mentalidad de un campeón; de Nick Vujicic,
@@ -233,11 +231,9 @@ const BASE_TEMPLATE = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional
     <table role="presentation" class="wrap lightbg" width="600" cellpadding="0" cellspacing="0" border="0"
            style="width:600px;max-width:600px;background-color:#c6c3d2;">
       <tr>
-        <!-- QR: en el correo viaja como adjunto inline (cid:), porque Gmail y Outlook
-             descartan las URI data:. El PDF de la invitación reutiliza esta misma
-             plantilla pasando un data URI en qrSrc (Puppeteer sí puede resolverlo). -->
+        <!-- QR: viaja como adjunto inline, no como URL: Gmail y Outlook descartan las URI data: -->
         <td class="px lightbg" align="center" style="padding:34px 40px 0 40px;background-color:#c6c3d2;">
-          <img src="{{qrSrc}}" alt="Tu código QR de acceso" class="qr" width="170"
+          <img src="cid:{{qrCid}}" alt="Tu código QR de acceso" class="qr" width="170"
                style="width:170px;max-width:100%;height:auto;margin:0 auto;" />
         </td>
       </tr>
@@ -290,15 +286,7 @@ const BASE_TEMPLATE = `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional
 
 const compiled = Handlebars.compile(BASE_TEMPLATE);
 
-/**
- * `pdfMode: true` quita la imagen de fondo (`fondo-correo.png`, aplicada con
- * `background-size:cover`) y deja solo `background-color`: Chromium se cuelga
- * indefinidamente al imprimir a PDF (`page.pdf({ printBackground: true })`) esa
- * combinación de imagen de fondo + tabla alta. Los colores no tienen ese
- * problema (se confirmó por separado), así que el PDF de la invitación
- * conserva el mismo layout/logo/QR/colores, solo sin esa textura decorativa.
- * @param {{ fullName: string, qrSrc: string, pdfMode?: boolean }} context
- */
+/** @param {{ fullName: string, qrCid: string }} context */
 export function renderInvitationEmail(context) {
   return compiled(context);
 }
