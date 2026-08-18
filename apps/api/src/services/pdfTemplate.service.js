@@ -209,12 +209,14 @@ const INVITATION_TEMPLATE = `<!DOCTYPE html>
       <br>
       <p class="access-title">Tu acceso es personal</p>
       <br>
-      <br>
-      <br>
-      <br>
+     
       <div class="qr-card">
         <img class="qr" src="{{qrSrc}}" alt="Tu código QR de acceso" />
       </div>
+       <br>
+      <br>
+      <br>
+      <br>
       <p class="access-text">
         Antes de tu llegada, asegúrate de tener este código QR a la mano. Es personal, de un solo uso y no debe
         ser compartido con nadie más.
