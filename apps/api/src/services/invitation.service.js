@@ -69,7 +69,7 @@ export async function listRegistry({ status, q, page = 1, limit = 25 } = {}) {
 
   const [items, total] = await Promise.all([
     Invitation.find(filter)
-      .select('guest.name guest.email region sede asiste crmId status')
+      .select('guest.name guest.email region sede asiste crmId status scan')
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit),

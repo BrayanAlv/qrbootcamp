@@ -8,12 +8,16 @@ services:
     container_name: qr-web
     restart: unless-stopped
     environment:
-      - VITE_API_URL=http://localhost:3080/api/v1
+      - VITE_API_URL=/api/v1
     volumes:
       - ./apps/web:/app
       - web_node_modules:/app/node_modules
     ports:
       - "5573:5173"
+    depends_on:
+      - api
+    networks:
+      - backend
 
   api:
     build:
@@ -25,9 +29,9 @@ services:
       - .env
     environment:
       - NODE_ENV=development
-    # Necesario para que el sandbox de Chromium (Puppeteer) funcione en el contenedor.
-    cap_add:
-      - SYS_ADMIN
+      # Chromium corre como root dentro del contenedor; el sandbox no es usable
+      # ("Running as root without --no-sandbox is not supported"), se desactiva.
+      - PDF_CHROMIUM_NO_SANDBOX=true
     volumes:
       - ./apps/api:/app
       - api_node_modules:/app/node_modules

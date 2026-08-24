@@ -2,14 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Box, Typography, Button, Alert, CircularProgress, Stack, IconButton, Tooltip,
   Table, TableHead, TableBody, TableRow, TableCell, TablePagination,
-  TextField, MenuItem, InputAdornment, useMediaQuery, useTheme,
+  TextField, MenuItem, useMediaQuery, useTheme,
   Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions,
 } from '@mui/material';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import SendIcon from '@mui/icons-material/Send';
 import ForwardToInboxIcon from '@mui/icons-material/ForwardToInbox';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import SearchIcon from '@mui/icons-material/Search';
 import DownloadIcon from '@mui/icons-material/Download';
 import PersonAddAlt1Icon from '@mui/icons-material/PersonAddAlt1';
 import { invitationService } from '../../services/invitationService.js';
@@ -18,6 +17,7 @@ import { PageHero } from '../../components/PageHero.jsx';
 import { StatusPill, STATUS_TONE } from '../../components/StatusPill.jsx';
 import { COLORS, FONTS, LINES, eyebrow, figure, properName } from '../../theme/tokens.js';
 import { toCsv, downloadCsv } from '../../utils/csv.js';
+import { SearchField } from '../../components/SearchField.jsx';
 
 const STATUS_FILTERS = [
   { value: '', label: 'Todos los estados' },
@@ -69,6 +69,94 @@ function Figure({ value, label, accent = COLORS.text }) {
   );
 }
 
+// Dialog para agregar un invitado individual. El estado del formulario vive aquí
+// (no en la página): teclear en los campos solo re-renderiza el dialog, no la
+// tabla ni el resto de la página.
+function AddGuestDialog({ open, onClose, onSubmit }) {
+  const [form, setForm] = useState(EMPTY_GUEST_FORM);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleSubmit = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      await onSubmit(form);
+      setForm(EMPTY_GUEST_FORM);
+    } catch (e) {
+      setError(extractError(e).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onClose={() => !saving && onClose()} maxWidth="sm" fullWidth>
+      <DialogTitle>Agregar invitado</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2} sx={{ mt: 1 }}>
+          {error && <Alert severity="error">{error}</Alert>}
+          <TextField
+            label="Nombre completo"
+            required
+            value={form.nombre}
+            onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))}
+          />
+          <TextField
+            label="ID CRM"
+            required
+            value={form.crmId}
+            onChange={(e) => setForm((f) => ({ ...f, crmId: e.target.value }))}
+          />
+          <Stack direction="row" spacing={2}>
+            <TextField
+              label="Región"
+              value={form.region}
+              onChange={(e) => setForm((f) => ({ ...f, region: e.target.value }))}
+              sx={{ flex: 1 }}
+            />
+            <TextField
+              label="Sede"
+              value={form.sede}
+              onChange={(e) => setForm((f) => ({ ...f, sede: e.target.value }))}
+              sx={{ flex: 1 }}
+            />
+          </Stack>
+          <TextField
+            label="Asiste"
+            value={form.asiste}
+            onChange={(e) => setForm((f) => ({ ...f, asiste: e.target.value }))}
+          />
+          <TextField
+            label="Correo 1"
+            value={form.email}
+            onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+          />
+          <TextField
+            label="Correo 2 (copia)"
+            value={form.emailCc}
+            onChange={(e) => setForm((f) => ({ ...f, emailCc: e.target.value }))}
+            helperText="Alcanza con que uno de los dos correos sea válido: ese recibe el QR."
+          />
+        </Stack>
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 2.5 }}>
+        <Button onClick={onClose} disabled={saving} sx={{ color: COLORS.textSoft }}>
+          Cancelar
+        </Button>
+        <Button
+          onClick={handleSubmit}
+          disabled={saving || !form.nombre.trim() || !form.crmId.trim()}
+          variant="contained"
+          startIcon={saving ? <CircularProgress size={14} color="inherit" /> : null}
+        >
+          Agregar
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
 export function AdminImportPage() {
   const theme = useTheme();
   const isCompact = useMediaQuery(theme.breakpoints.down('md'));
@@ -84,7 +172,6 @@ export function AdminImportPage() {
 
   // Filtros y paginación. `page` es 0-indexado (convención de MUI); el API espera 1-indexado.
   const [status, setStatus] = useState('');
-  const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
@@ -104,16 +191,7 @@ export function AdminImportPage() {
   const [confirming, setConfirming] = useState(false);
 
   const [addOpen, setAddOpen] = useState(false);
-  const [addForm, setAddForm] = useState(EMPTY_GUEST_FORM);
-  const [addSaving, setAddSaving] = useState(false);
-  const [addError, setAddError] = useState(null);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 400);
-    return () => clearTimeout(timer);
-  }, [search]);
-
-  // Al cambiar un filtro, volver a la primera página (si no, se vería una página vacía).
   useEffect(() => {
     setPage(0);
   }, [status, debouncedSearch]);
@@ -228,19 +306,10 @@ export function AdminImportPage() {
     downloadCsv('invitados-con-error.csv', toCsv(rows, ERROR_CSV_HEADERS));
   };
 
-  const onAddGuest = async () => {
-    setAddSaving(true);
-    setAddError(null);
-    try {
-      await invitationService.create(addForm);
-      setAddOpen(false);
-      setAddForm(EMPTY_GUEST_FORM);
-      await loadList();
-    } catch (e) {
-      setAddError(extractError(e).message);
-    } finally {
-      setAddSaving(false);
-    }
+  const onAddGuest = async (data) => {
+    await invitationService.create(data);
+    setAddOpen(false);
+    await loadList();
   };
 
   const onConfirm = async () => {
@@ -494,19 +563,9 @@ export function AdminImportPage() {
           </Stack>
 
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 3 }}>
-            <TextField
-              size="small"
+            <SearchField
               placeholder="Buscar por nombre o email"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              sx={{ flexGrow: 1 }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon sx={{ fontSize: 18, color: COLORS.neutral }} />
-                  </InputAdornment>
-                ),
-              }}
+              onChange={setDebouncedSearch}
             />
             <TextField
               select
@@ -702,69 +761,11 @@ export function AdminImportPage() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={addOpen} onClose={() => !addSaving && setAddOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Agregar invitado</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} sx={{ mt: 1 }}>
-            {addError && <Alert severity="error">{addError}</Alert>}
-            <TextField
-              label="Nombre completo"
-              required
-              value={addForm.nombre}
-              onChange={(e) => setAddForm((f) => ({ ...f, nombre: e.target.value }))}
-            />
-            <TextField
-              label="ID CRM"
-              required
-              value={addForm.crmId}
-              onChange={(e) => setAddForm((f) => ({ ...f, crmId: e.target.value }))}
-            />
-            <Stack direction="row" spacing={2}>
-              <TextField
-                label="Región"
-                value={addForm.region}
-                onChange={(e) => setAddForm((f) => ({ ...f, region: e.target.value }))}
-                sx={{ flex: 1 }}
-              />
-              <TextField
-                label="Sede"
-                value={addForm.sede}
-                onChange={(e) => setAddForm((f) => ({ ...f, sede: e.target.value }))}
-                sx={{ flex: 1 }}
-              />
-            </Stack>
-            <TextField
-              label="Asiste"
-              value={addForm.asiste}
-              onChange={(e) => setAddForm((f) => ({ ...f, asiste: e.target.value }))}
-            />
-            <TextField
-              label="Correo 1"
-              value={addForm.email}
-              onChange={(e) => setAddForm((f) => ({ ...f, email: e.target.value }))}
-            />
-            <TextField
-              label="Correo 2 (copia)"
-              value={addForm.emailCc}
-              onChange={(e) => setAddForm((f) => ({ ...f, emailCc: e.target.value }))}
-              helperText="Alcanza con que uno de los dos correos sea válido: ese recibe el QR."
-            />
-          </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2.5 }}>
-          <Button onClick={() => setAddOpen(false)} disabled={addSaving} sx={{ color: COLORS.textSoft }}>
-            Cancelar
-          </Button>
-          <Button
-            onClick={onAddGuest}
-            disabled={addSaving || !addForm.nombre.trim() || !addForm.crmId.trim()}
-            variant="contained"
-            startIcon={addSaving ? <CircularProgress size={14} color="inherit" /> : null}
-          >
-            Agregar
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <AddGuestDialog
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        onSubmit={onAddGuest}
+      />
     </>
   );
 }

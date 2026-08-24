@@ -18,11 +18,12 @@ export const browserLaunchOptions = Object.freeze({
   executablePath: env.puppeteerExecutablePath,
   headless: true,
   args: [
-    '--no-zygote',
     '--disable-dev-shm-usage',
     '--disable-gpu',
     '--force-color-profile=srgb',
-    ...(env.pdfChromiumNoSandbox ? ['--no-sandbox', '--disable-setuid-sandbox'] : []),
+    // `--no-zygote` solo con sandbox deshabilitado: en Chromium moderno
+    // "Zygote cannot be disabled if sandbox is enabled".
+    ...(env.pdfChromiumNoSandbox ? ['--no-sandbox', '--disable-setuid-sandbox', '--no-zygote'] : []),
   ],
 });
 

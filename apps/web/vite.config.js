@@ -6,6 +6,12 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
+    proxy: {
+      '/api': {
+        target: 'http://api:3000',
+        changeOrigin: true,
+      },
+    },
   },
   define: {
     __APP_VERSION__: JSON.stringify('0.1.0'),

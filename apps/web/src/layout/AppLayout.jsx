@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import {
   Box, Typography, ButtonBase, IconButton, Tooltip, Menu, MenuItem,
   ListItemIcon, ListItemText, Divider, useMediaQuery, useTheme,
+  CircularProgress,
 } from '@mui/material';
 import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
@@ -206,7 +207,15 @@ export function AppLayout() {
       {navMenu}
 
       <Box component="main" sx={{ flexGrow: 1 }}>
-        <Outlet />
+        <Suspense
+          fallback={
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '40vh' }}>
+              <CircularProgress size={26} />
+            </Box>
+          }
+        >
+          <Outlet />
+        </Suspense>
       </Box>
 
       {/* La franja de cierre no entra en /scan: esa pantalla queda tal cual. */}

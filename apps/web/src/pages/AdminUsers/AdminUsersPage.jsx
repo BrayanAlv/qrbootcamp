@@ -20,15 +20,88 @@ const PANEL = {
 
 const ROLE_LABEL = { admin: 'Administrador', user: 'Acceso puerta' };
 
+// Dialog para crear un usuario. El estado del formulario vive aquí (no en la
+// página): teclear en los campos solo re-renderiza el dialog, no la tabla.
+function NewUserDialog({ open, onClose, onSubmit }) {
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleSubmit = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      await onSubmit(form);
+      setForm(EMPTY_FORM);
+    } catch (e) {
+      setError(extractError(e).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onClose={() => !saving && onClose()} maxWidth="sm" fullWidth>
+      <DialogTitle>Nuevo usuario</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2} sx={{ mt: 1 }}>
+          {error && <Alert severity="error">{error}</Alert>}
+          <TextField
+            label="Nombre completo"
+            required
+            value={form.name}
+            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+          />
+          <TextField
+            label="Correo"
+            type="email"
+            required
+            value={form.email}
+            onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+          />
+          <TextField
+            label="Contraseña"
+            type="password"
+            required
+            helperText="Mínimo 8 caracteres."
+            value={form.password}
+            onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+          />
+          <TextField
+            select
+            label="Acceso"
+            value={form.role}
+            onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
+            helperText="'Acceso puerta' solo escanea y ve el listado de personas."
+          >
+            <MenuItem value="user">Acceso puerta</MenuItem>
+            <MenuItem value="admin">Administrador</MenuItem>
+          </TextField>
+        </Stack>
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 2.5 }}>
+        <Button onClick={onClose} disabled={saving} sx={{ color: COLORS.textSoft }}>
+          Cancelar
+        </Button>
+        <Button
+          onClick={handleSubmit}
+          disabled={saving || !form.name.trim() || !form.email.trim() || form.password.length < 8}
+          variant="contained"
+          startIcon={saving ? <CircularProgress size={14} color="inherit" /> : null}
+        >
+          Crear
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
 export function AdminUsersPage() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const [addOpen, setAddOpen] = useState(false);
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [saving, setSaving] = useState(false);
-  const [addError, setAddError] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -44,19 +117,10 @@ export function AdminUsersPage() {
 
   useEffect(() => { load(); }, []);
 
-  const onAdd = async () => {
-    setSaving(true);
-    setAddError(null);
-    try {
-      await usersService.create(form);
-      setAddOpen(false);
-      setForm(EMPTY_FORM);
-      await load();
-    } catch (e) {
-      setAddError(extractError(e).message);
-    } finally {
-      setSaving(false);
-    }
+  const onAdd = async (data) => {
+    await usersService.create(data);
+    setAddOpen(false);
+    await load();
   };
 
   const onToggleActive = async (user) => {
@@ -165,7 +229,6 @@ export function AdminUsersPage() {
                               size="small"
                               checked={user.isActive}
                               onChange={() => onToggleActive(user)}
-                              disabled={saving}
                             />
                           </span>
                         </Tooltip>
@@ -198,58 +261,11 @@ export function AdminUsersPage() {
         </Box>
       </Box>
 
-      <Dialog open={addOpen} onClose={() => !saving && setAddOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Nuevo usuario</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} sx={{ mt: 1 }}>
-            {addError && <Alert severity="error">{addError}</Alert>}
-            <TextField
-              label="Nombre completo"
-              required
-              value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-            />
-            <TextField
-              label="Correo"
-              type="email"
-              required
-              value={form.email}
-              onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-            />
-            <TextField
-              label="Contraseña"
-              type="password"
-              required
-              helperText="Mínimo 8 caracteres."
-              value={form.password}
-              onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-            />
-            <TextField
-              select
-              label="Acceso"
-              value={form.role}
-              onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
-              helperText="'Acceso puerta' solo escanea y ve el listado de personas."
-            >
-              <MenuItem value="user">Acceso puerta</MenuItem>
-              <MenuItem value="admin">Administrador</MenuItem>
-            </TextField>
-          </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2.5 }}>
-          <Button onClick={() => setAddOpen(false)} disabled={saving} sx={{ color: COLORS.textSoft }}>
-            Cancelar
-          </Button>
-          <Button
-            onClick={onAdd}
-            disabled={saving || !form.name.trim() || !form.email.trim() || form.password.length < 8}
-            variant="contained"
-            startIcon={saving ? <CircularProgress size={14} color="inherit" /> : null}
-          >
-            Crear
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <NewUserDialog
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        onSubmit={onAdd}
+      />
     </>
   );
 }

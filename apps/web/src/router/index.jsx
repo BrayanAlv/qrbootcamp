@@ -1,13 +1,17 @@
+import { lazy } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { AppLayout } from '../layout/AppLayout.jsx';
 import { RequireAuth } from './RequireAuth.jsx';
 import { RequireAdmin } from './RequireAdmin.jsx';
 import { LoginPage } from '../pages/Login/LoginPage.jsx';
-import { ScanQRPage } from '../pages/ScanQR/ScanQRPage.jsx';
-import { ListadoPage } from '../pages/Listado/ListadoPage.jsx';
-import { AdminImportPage } from '../pages/AdminImport/AdminImportPage.jsx';
-import { AdminUsersPage } from '../pages/AdminUsers/AdminUsersPage.jsx';
-import { HealthPage } from '../pages/HealthPage.jsx';
+
+// Code-splitting por ruta: cada página se carga al navegar a ella, reduciendo
+// el JS que se evalúa al arrancar y por interacción de navegación.
+const ScanQRPage = lazy(() => import('../pages/ScanQR/ScanQRPage.jsx').then((m) => ({ default: m.ScanQRPage })));
+const ListadoPage = lazy(() => import('../pages/Listado/ListadoPage.jsx').then((m) => ({ default: m.ListadoPage })));
+const AdminImportPage = lazy(() => import('../pages/AdminImport/AdminImportPage.jsx').then((m) => ({ default: m.AdminImportPage })));
+const AdminUsersPage = lazy(() => import('../pages/AdminUsers/AdminUsersPage.jsx').then((m) => ({ default: m.AdminUsersPage })));
+const HealthPage = lazy(() => import('../pages/HealthPage.jsx').then((m) => ({ default: m.HealthPage })));
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },

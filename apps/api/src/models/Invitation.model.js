@@ -3,6 +3,32 @@ import mongoose from 'mongoose';
 export const INVITATION_STATUS = ['pendiente', 'aceptada', 'rechazada', 'expirada'];
 export const EMAIL_STATUS = ['pending', 'sent', 'failed'];
 
+// Snapshot del operador que escaneó (se guarda con el nombre/email por si el
+// usuario se borra después; el historial no debe perder quién escaneó).
+const scanRefSchema = new mongoose.Schema(
+  {
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    name: { type: String, default: null },
+    email: { type: String, default: null },
+  },
+  { _id: false },
+);
+
+// Resumen denormalizado del escaneo, para el listado/Excel sin consultas N+1.
+// Fuente de verdad del "primer escaneo válido" sigue siendo `usedAt` (la
+// actualización atómica); esto es una copia optimizada para lectura.
+const scanSnapshotSchema = new mongoose.Schema(
+  {
+    attempts: { type: Number, default: 0 }, // contador atómico vía $inc
+    firstAt: { type: Date, default: null },
+    firstBy: { type: scanRefSchema, default: null },
+    lastAt: { type: Date, default: null },
+    lastStatus: { type: String, default: null },
+    lastBy: { type: scanRefSchema, default: null },
+  },
+  { _id: false },
+);
+
 // Subdocumento del destinatario principal (invitado)
 const recipientSchema = new mongoose.Schema(
   {
@@ -46,6 +72,10 @@ const invitationSchema = new mongoose.Schema(
     emailStatus: {
       attendee: { type: Boolean, default: false },
     },
+
+    // Resumen de escaneo (campos opcionales, aditivos; null para los que aún
+    // no tienen historial). No rompe documentos ni índices existentes.
+    scan: { type: scanSnapshotSchema, default: () => ({ attempts: 0 }) },
   },
   { timestamps: true },
 );

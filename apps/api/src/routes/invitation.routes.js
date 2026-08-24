@@ -9,6 +9,8 @@ import {
   registry,
   removeInvitation,
   accept,
+  scanHistory,
+  exportRegistry,
 } from '../controllers/invitation.controller.js';
 import { sendInvitation, resendInvitation, sendAll, sendStatus } from '../controllers/email.controller.js';
 import { protect } from '../middleware/auth.js';
@@ -56,6 +58,8 @@ router.use(protect);
 // Las rutas literales van ANTES que las de `/:id`, o el parámetro las capturaría.
 router.get('/', listInvitations);
 router.get('/registry', requireUser, registry);
+// Exportación Excel del padrón + historial (Solo admin). Ruta literal antes de `/:id`.
+router.get('/registry/export.xlsx', requireAdmin, exportRegistry);
 router.post('/', requireAdmin, validate(createInvitationSchema), createInvitation);
 router.get('/sent', requireAdmin, validate(listSentSchema), listSent);
 router.get('/stats', requireAdmin, stats);
@@ -66,5 +70,7 @@ router.post('/:id/send', requireAdmin, validate(idParamSchema), sendInvitation);
 router.post('/:id/resend', requireAdmin, resendLimiter, validate(idParamSchema), resendInvitation);
 router.delete('/:id', requireAdmin, validate(idParamSchema), removeInvitation);
 router.post('/:id/accept', acceptLimiter, validate(acceptSchema), accept);
+// Historial de escaneos de una invitación (roles de escaneo/lectura).
+router.get('/:id/scan-history', requireUser, validate(idParamSchema), scanHistory);
 
 export default router;

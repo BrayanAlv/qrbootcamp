@@ -9,7 +9,6 @@ import { alpha } from '@mui/material/styles';
 import CloseIcon from '@mui/icons-material/Close';
 import PersonIcon from '@mui/icons-material/Person';
 import { qrService } from '../../services/qrService.js';
-import { invitationService } from '../../services/invitationService.js';
 import { extractError } from '../../services/api.js';
 import {
   BRAND_ASSETS, BRAND_COLORS, DISPLAY_FONT, MADERAS_LOGO_DARK_FILTER,
@@ -137,10 +136,10 @@ export function ScanQRPage() {
     set(SCAN_STATES.VALIDATING, 'Validando código QR...');
 
     try {
-      const res = await qrService.validate(raw);
-      // La invitación se acepta sola al escanear: no hay confirmación manual.
-      await invitationService.accept(res.data.invitationId, raw);
-      setInvitation({ ...res.data, status: 'aceptada' });
+      // Un solo endpoint autenticado que valida, marca el primer uso de forma
+      // atómica y registra el intento en la bitácora de auditoría.
+      const body = await qrService.scan(raw);
+      setInvitation({ ...body.data, status: 'aceptada' });
       set(SCAN_STATES.VALID, 'Invitación válida');
     } catch (err) {
       const { code, message, details } = extractError(err);
