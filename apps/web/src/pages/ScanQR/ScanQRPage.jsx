@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { BrowserQRCodeReader } from '@zxing/browser';
-import { DecodeHintType } from '@zxing/library';
 import {
   Box, Paper, Typography, CircularProgress, ButtonBase,
   IconButton, Dialog, DialogContent, useMediaQuery, useTheme,
@@ -15,6 +14,29 @@ import {
 } from '../../theme/brand.js';
 
 const SEAL_SIZE = 'min(52vw, 184px)';
+
+// Máximo ancho del cuadro que se decodifica. El canvas de captura de
+// @zxing/browser siempre usa la resolución nativa de la cámara (1280x720+),
+// y getImageData + conversión a grises + binarización sobre ~1M de px es lo
+// que domina el costo por intento en móviles. El QR de la invitación ocupa
+// gran parte del cuadro, así que esta reducción no pierde módulos y cada
+// intento cuesta ~4x menos (más intentos por segundo, menos traba de UI).
+const DECODE_MAX_WIDTH = 640;
+
+class FastBrowserQRCodeReader extends BrowserQRCodeReader {
+  decodeFromCanvas(canvas) {
+    if (canvas.width <= DECODE_MAX_WIDTH) return super.decodeFromCanvas(canvas);
+    if (!this.decodeCanvasCtx) {
+      this.decodeCanvas = document.createElement('canvas');
+      this.decodeCanvas.width = DECODE_MAX_WIDTH;
+      this.decodeCanvas.height = Math.round((canvas.height / canvas.width) * DECODE_MAX_WIDTH);
+      this.decodeCanvasCtx = this.decodeCanvas.getContext('2d', { willReadFrequently: true });
+      this.decodeCanvasCtx.imageSmoothingEnabled = true;
+    }
+    this.decodeCanvasCtx.drawImage(canvas, 0, 0, this.decodeCanvas.width, this.decodeCanvas.height);
+    return super.decodeFromCanvas(this.decodeCanvas);
+  }
+}
 
 const SCAN_STATES = {
   IDLE: 'idle',
@@ -65,21 +87,41 @@ export function ScanQRPage() {
   const [focusPoint, setFocusPoint] = useState(null); // feedback visual del tap-to-focus
 
   // Tap-to-focus manual: best-effort, para navegadores/cámaras donde el foco
-  // continuo automático no está soportado o falla en un cuadro puntual. Si el
-  // dispositivo no soporta pointsOfInterest, el tap simplemente no hace nada.
+  // continuo automático no está soportado o falla en un cuadro puntual. No se
+  // consulta getCapabilities() antes de aplicar (iOS Safari no lo expone y el
+  // tap quedaba muerto): se intenta pointsOfInterest directo y, si el navegador
+  // lo rechaza, se cae a focusMode 'single-shot'. Si nada es soportado, el tap
+  // simplemente no enfoca pero el anillo de feedback sí se muestra.
   const handleFocusTap = (e) => {
+    const video = videoRef.current;
     const controls = controlsRef.current;
-    if (!controls?.streamVideoCapabilitiesGet) return;
-    try {
-      const caps = controls.streamVideoCapabilitiesGet((t) => t.kind === 'video');
-      if (!caps?.pointsOfInterest) return;
-      const rect = e.currentTarget.getBoundingClientRect();
-      const x = (e.clientX - rect.left) / rect.width;
-      const y = (e.clientY - rect.top) / rect.height;
-      controls.streamVideoConstraintsApply({ advanced: [{ pointsOfInterest: [{ x, y }] }] });
-      setFocusPoint({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-      setTimeout(() => setFocusPoint(null), 600);
-    } catch { /* sin foco manual soportado en este navegador */ }
+    if (!video || !controls?.streamVideoConstraintsApply) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const px = e.clientX - rect.left;
+    const py = e.clientY - rect.top;
+
+    // El video se pinta con objectFit: 'cover' (recortado), así que el tap se
+    // traduce a coordenadas normalizadas (0..1) del cuadro REAL de la cámara,
+    // no del elemento <video>: hay que compensar escala y recorte.
+    let x = px / rect.width;
+    let y = py / rect.height;
+    const { videoWidth, videoHeight } = video;
+    if (videoWidth && videoHeight) {
+      const scale = Math.max(rect.width / videoWidth, rect.height / videoHeight);
+      const offX = (rect.width - videoWidth * scale) / 2;
+      const offY = (rect.height - videoHeight * scale) / 2;
+      x = Math.min(1, Math.max(0, (px - offX) / (videoWidth * scale)));
+      y = Math.min(1, Math.max(0, (py - offY) / (videoHeight * scale)));
+    }
+
+    const apply = (constraint) => controls.streamVideoConstraintsApply({ advanced: [constraint] });
+    apply({ pointsOfInterest: [{ x, y }] })
+      .catch(() => apply({ focusMode: 'single-shot' }))
+      .catch(() => { /* sin foco manual soportado en este navegador */ });
+
+    setFocusPoint({ x: px, y: py });
+    setTimeout(() => setFocusPoint(null), 600);
   };
 
   const freezeFrame = () => {
@@ -131,14 +173,20 @@ export function ScanQRPage() {
     set(SCAN_STATES.DETECTED, 'QR escaneado');
     setInvitation(null);
 
-    // feedback inmediato + estado de validación
+    // La validación arranca de inmediato: los 350ms de feedback ("QR escaneado")
+    // corren en paralelo con la red en vez de sumarse a ella. El .catch() es un
+    // no-op para evitar "unhandled rejection" mientras corre el feedback; el
+    // error se maneja igual en el try/catch de abajo al esperar la promesa.
+    const scanPromise = qrService.scan(raw);
+    scanPromise.catch(() => {});
+
     await new Promise((r) => setTimeout(r, 350));
     set(SCAN_STATES.VALIDATING, 'Validando código QR...');
 
     try {
       // Un solo endpoint autenticado que valida, marca el primer uso de forma
       // atómica y registra el intento en la bitácora de auditoría.
-      const body = await qrService.scan(raw);
+      const body = await scanPromise;
       setInvitation({ ...body.data, status: 'aceptada' });
       set(SCAN_STATES.VALID, 'Invitación válida');
     } catch (err) {
@@ -162,12 +210,11 @@ export function ScanQRPage() {
   useEffect(() => {
     if (state !== SCAN_STATES.PERMISSION) return undefined;
 
-    // TRY_HARDER: prueba más combinaciones de patrones por cuadro (QR
-    // inclinado/borroso). delayBetweenScanAttempts baja de los 500ms por
-    // default a 120ms: la cámara reintenta ~4x más seguido.
-    const hints = new Map();
-    hints.set(DecodeHintType.TRY_HARDER, true);
-    const reader = new BrowserQRCodeReader(hints, { delayBetweenScanAttempts: 120 });
+    // Sin TRY_HARDER: cuesta ~2-3x por cuadro y ya no se necesita para
+    // compensar la resolución alta (FastBrowserQRCodeReader decodifica sobre
+    // una copia de ~640px). delayBetweenScanAttempts baja de los 500ms por
+    // default a 80ms: con intentos ahora baratos, la cámara reintenta seguido.
+    const reader = new FastBrowserQRCodeReader(undefined, { delayBetweenScanAttempts: 80 });
     codeReaderRef.current = reader;
 
     // Constraints explícitos (en vez de decodeFromVideoDevice con device
@@ -678,7 +725,9 @@ export function ScanQRPage() {
         />
       )}
 
-      {/* marco guía: se oculta cuando el popout de resultado toma el foco */}
+      {/* marco guía: se oculta cuando el popout de resultado toma el foco.
+          pointerEvents: 'none' — si no, este overlay captura los taps en el
+          centro de la pantalla y el tap-to-focus del <video> nunca se entera. */}
       {!RESULT_STATES.includes(state) && (
         <>
           <Box
@@ -692,6 +741,7 @@ export function ScanQRPage() {
               border: '3px solid rgba(255,255,255,0.85)',
               borderRadius: 4,
               boxShadow: '0 0 0 100vmax rgba(0,0,0,0.45)',
+              pointerEvents: 'none',
             }}
           />
 
@@ -705,6 +755,7 @@ export function ScanQRPage() {
               color: '#fff',
               fontWeight: 500,
               px: 4,
+              pointerEvents: 'none',
             }}
           >
             Apunta la cámara al código QR de la invitación
