@@ -86,12 +86,13 @@ export function ScanQRPage() {
   const [frozenFrame, setFrozenFrame] = useState(null);
   const [focusPoint, setFocusPoint] = useState(null); // feedback visual del tap-to-focus
 
-  // Tap-to-focus manual: best-effort, para navegadores/cámaras donde el foco
-  // continuo automático no está soportado o falla en un cuadro puntual. No se
-  // consulta getCapabilities() antes de aplicar (iOS Safari no lo expone y el
-  // tap quedaba muerto): se intenta pointsOfInterest directo y, si el navegador
-  // lo rechaza, se cae a focusMode 'single-shot'. Si nada es soportado, el tap
-  // simplemente no enfoca pero el anillo de feedback sí se muestra.
+  // Tap-to-focus manual: el foco es fijo, no continuo (el autofoco de varios
+  // dispositivos caza mal y deja el QR borroso). Cada tap enfoca el punto y
+  // lo bloquea ahí. No se consulta getCapabilities() antes de aplicar (iOS
+  // Safari no lo expone y el tap quedaba muerto): se intenta pointsOfInterest
+  // + focusMode 'single-shot' juntos y, si el navegador rechaza la
+  // combinación, se cae a solo 'single-shot'. Si nada es soportado, el tap
+  // no enfoca pero el anillo de feedback sí se muestra.
   const handleFocusTap = (e) => {
     const video = videoRef.current;
     const controls = controlsRef.current;
@@ -116,7 +117,11 @@ export function ScanQRPage() {
     }
 
     const apply = (constraint) => controls.streamVideoConstraintsApply({ advanced: [constraint] });
-    apply({ pointsOfInterest: [{ x, y }] })
+    // Tap = enfocar en el punto y bloquear ahí (foco manual). Se intenta
+    // pointsOfInterest + single-shot juntos; si el navegador rechaza la
+    // combinación, se cae a solo single-shot. Si nada es soportado, no enfoca
+    // pero el anillo de feedback sí se muestra.
+    apply({ pointsOfInterest: [{ x, y }], focusMode: 'single-shot' })
       .catch(() => apply({ focusMode: 'single-shot' }))
       .catch(() => { /* sin foco manual soportado en este navegador */ });
 
@@ -218,18 +223,18 @@ export function ScanQRPage() {
     codeReaderRef.current = reader;
 
     // Constraints explícitos (en vez de decodeFromVideoDevice con device
-    // undefined) para pedir mayor resolución y foco continuo: cuadros más
-    // nítidos que la cámara resuelve más rápido. focusMode solo se reconoce
-    // dentro de `advanced` (no es una constraint básica); igual se refuerza
-    // más abajo vía applyConstraints una vez que el stream ya está corriendo,
-    // porque en varios Android el foco continuo solo prende si se pide
-    // después de negociado el stream, no en el getUserMedia inicial.
+    // undefined) para pedir mayor resolución: cuadros más nítidos que la
+    // cámara resuelve más rápido. SIN focusMode 'continuous': el foco es
+    // manual (tap), porque en muchos dispositivos el autofoco continuo caza
+    // mal y deja el QR borroso. El enfoque inicial se hace luego vía
+    // applyConstraints sobre el stream ya negociado (bloque focusAppliedRef
+    // de abajo), porque en varios Android el foco solo se puede fijar
+    // después de abierto el stream.
     const constraints = {
       video: {
         facingMode: 'environment',
         width: { ideal: 1280 },
         height: { ideal: 720 },
-        advanced: [{ focusMode: 'continuous' }],
       },
     };
 
@@ -237,14 +242,15 @@ export function ScanQRPage() {
       .decodeFromConstraints(constraints, videoRef.current, (result, _error, controls) => {
         controlsRef.current = controls; // se refresca en cada intento, no solo al detectar
 
-        if (!focusAppliedRef.current && controls?.streamVideoCapabilitiesGet) {
+        if (!focusAppliedRef.current && controls?.streamVideoConstraintsApply) {
           focusAppliedRef.current = true;
-          try {
-            const caps = controls.streamVideoCapabilitiesGet((t) => t.kind === 'video');
-            if (caps?.focusMode?.includes('continuous')) {
-              controls.streamVideoConstraintsApply({ advanced: [{ focusMode: 'continuous' }] });
-            }
-          } catch { /* getCapabilities/applyConstraints no soportado en este navegador */ }
+          // Foco manual: una sola vez, apenas el stream está corriendo, se
+          // enfoca al centro del marco guía y se bloquea ahí (single-shot).
+          // Si el dispositivo no soporta pointsOfInterest/focusMode, no pasa
+          // nada: solo quedará dependiendo de lo que haga el tap.
+          controls.streamVideoConstraintsApply({
+            advanced: [{ pointsOfInterest: [{ x: 0.5, y: 0.5 }] }, { focusMode: 'single-shot' }],
+          }).catch(() => {});
         }
 
         if (result?.getText() && !scanning.current) {
@@ -643,7 +649,7 @@ export function ScanQRPage() {
                       px: 4,
                     }}
                   >
-                    Apunta la cámara al código QR de la invitación
+                    Apunta la cámara al código QR de la invitación · Toca para enfocar
                   </Typography>
                 </>
               )}
@@ -758,7 +764,7 @@ export function ScanQRPage() {
               pointerEvents: 'none',
             }}
           >
-            Apunta la cámara al código QR de la invitación
+            Apunta la cámara al código QR de la invitación · Toca para enfocar
           </Typography>
         </>
       )}
